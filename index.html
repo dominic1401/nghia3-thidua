@@ -16,11 +16,6 @@
       <h1 id="title">Bảng thi đua lớp Nghĩa 3</h1>
       <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
     </div>
-    <nav>
-      <a href="index.html" aria-current="page">Bảng thi đua</a>
-      <a href="huynhtruong.html">Huynh Trưởng</a>
-      <a href="doitruong.html">Đội trưởng</a>
-    </nav>
   </header>
 
   <div id="status"></div>
@@ -164,6 +159,8 @@
     tbl.appendChild(tb); tw.appendChild(tbl);
     return tw;
   }
+
+  N3.mountRoleMenu({ page: 'index', role: null, onReload: function () { load(); } });
 
   load();
   setInterval(load, 5 * 60 * 1000); // tự làm mới mỗi 5 phút khi chiếu lên màn hình

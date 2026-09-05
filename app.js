@@ -214,11 +214,112 @@
   }
   function setBusy(on) { document.body.classList.toggle('busy', !!on); }
 
+  /* ---------------- Menu vai trò (góc dưới phải) ---------------- */
+  /**
+   * opts: { role: null | {role:'ht'} | {role:'doi', doi:n},
+   *         page: 'index'|'huynhtruong'|'doitruong',
+   *         onReload: fn, onLogout: fn }
+   */
+  function mountRoleMenu(opts) {
+    opts = opts || {};
+    var open = false, scrim = null, sheet = null;
+
+    var fab = h('button', { class: 'fab', type: 'button', 'aria-label': 'Mở menu', 'aria-expanded': 'false', text: '☰' });
+    fab.onclick = function () { open ? close() : show(); };
+    // Trang nào có thanh cố định ở đáy thì gắn nút vào đó để không đè lên nút Lưu
+    var host = opts.anchor ? document.querySelector(opts.anchor) : null;
+    if (host) { fab.classList.add('inline'); host.appendChild(fab); }
+    else document.body.appendChild(fab);
+
+    function close() {
+      open = false; fab.setAttribute('aria-expanded', 'false'); fab.hidden = false;
+      if (scrim) scrim.remove(); if (sheet) sheet.remove();
+      scrim = sheet = null; fab.focus();
+    }
+
+    function whoText() {
+      if (!opts.role) return 'Bạn đang xem với tư cách <b>khách</b>.';
+      if (opts.role.role === 'ht') return 'Bạn đang đăng nhập là <b>Huynh Trưởng</b>.';
+      return 'Bạn đang đăng nhập là <b>Đội trưởng Đội ' + opts.role.doi + '</b>.';
+    }
+
+    function show() {
+      open = true; fab.setAttribute('aria-expanded', 'true'); fab.hidden = true;
+      scrim = h('div', { class: 'scrim', onclick: close });
+      sheet = h('div', { class: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Menu' });
+      sheet.appendChild(h('h2', { text: 'Lớp Nghĩa 3' }));
+      sheet.appendChild(h('p', { class: 'who', html: whoText() }));
+
+      var row = h('div', { class: 'row' });
+      if (!opts.role) {
+        // Nhập PIN một lần, hệ thống tự đưa đúng trang theo vai trò
+        var err = h('p', { class: 'err', hidden: 'hidden' });
+        var pin = h('input', { type: 'password', inputmode: 'numeric', autocomplete: 'off', placeholder: 'Nhập PIN của bạn' });
+        var go = h('button', { class: 'btn gold', type: 'button', text: 'Đăng nhập' });
+        go.onclick = function () {
+          var v = pin.value.trim();
+          if (!v) { err.hidden = false; err.textContent = 'Bạn chưa nhập PIN.'; return; }
+          go.textContent = 'Đang kiểm tra…'; go.disabled = true; err.hidden = true;
+          apiPost({ action: 'verify', pin: v }).then(function (res) {
+            savePin(v);
+            location.href = res.role.role === 'ht' ? 'huynhtruong.html' : 'doitruong.html';
+          }).catch(function (e) {
+            err.hidden = false; err.textContent = e.message;
+            go.textContent = 'Đăng nhập'; go.disabled = false;
+          });
+        };
+        pin.addEventListener('keydown', function (e) { if (e.key === 'Enter') go.click(); });
+        row.appendChild(h('div', { class: 'field' }, [h('label', { text: 'PIN Huynh Trưởng hoặc Đội trưởng' }), pin]));
+        row.appendChild(go);
+        row.appendChild(err);
+        setTimeout(function () { pin.focus(); }, 60);
+      } else {
+        if (opts.page !== 'huynhtruong' && opts.role.role === 'ht') row.appendChild(h('a', { class: 'btn ghost', href: 'huynhtruong.html', text: 'Chấm điểm tuần' }));
+        if (opts.page !== 'doitruong') row.appendChild(h('a', { class: 'btn ghost', href: 'doitruong.html', text: opts.role.role === 'ht' ? 'Điểm danh thay đội' : 'Điểm danh Đội ' + opts.role.doi }));
+      }
+      if (opts.page !== 'index') row.appendChild(h('a', { class: 'btn ghost', href: 'index.html', text: 'Xem bảng thi đua' }));
+      if (opts.onReload) {
+        var rl = h('button', { class: 'btn ghost', type: 'button', text: 'Tải lại dữ liệu' });
+        rl.onclick = function () { close(); opts.onReload(); };
+        row.appendChild(rl);
+      }
+      if (opts.role) {
+        var lo = h('button', { class: 'btn danger', type: 'button', text: 'Đăng xuất' });
+        lo.onclick = function () {
+          if (!confirm('Đăng xuất khỏi thiết bị này? Lần sau bạn sẽ phải nhập lại PIN.')) return;
+          close(); (opts.onLogout || function () { clearPin(); location.reload(); })();
+        };
+        row.appendChild(lo);
+      }
+      sheet.appendChild(row);
+      document.body.appendChild(scrim);
+      document.body.appendChild(sheet);
+    }
+
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && open) close(); });
+    return { setRole: function (r) { opts.role = r; if (open) { close(); show(); } }, close: close };
+  }
+
+  /* ---------------- Thanh chọn Chúa Nhật ---------------- */
+  /** Gắn nút ‹ › vào hai bên thẻ select để đổi tuần bằng một chạm */
+  function wireWeekStepper(selectEl, prevBtn, nextBtn, onChange) {
+    function sync() {
+      prevBtn.disabled = selectEl.selectedIndex >= selectEl.options.length - 1;
+      nextBtn.disabled = selectEl.selectedIndex <= 0;
+    }
+    // Danh sách xếp giảm dần: index lớn hơn = tuần cũ hơn
+    prevBtn.onclick = function () { if (selectEl.selectedIndex < selectEl.options.length - 1) { selectEl.selectedIndex++; sync(); onChange(); } };
+    nextBtn.onclick = function () { if (selectEl.selectedIndex > 0) { selectEl.selectedIndex--; sync(); onChange(); } };
+    selectEl.addEventListener('change', function () { sync(); onChange(); });
+    return sync;
+  }
+
   window.N3 = {
     apiGet: apiGet, apiPost: apiPost, apiUrl: apiUrl, resetApi: function () { localStorage.removeItem(LS_API); },
     toISO: toISO, fromISO: fromISO, fmtVN: fmtVN, fmtShort: fmtShort, sundays: sundays, latestSunday: latestSunday,
     compute: compute, rankBy: rankBy, TEAM_COLORS: TEAM_COLORS,
     savedPin: savedPin, savePin: savePin, clearPin: clearPin,
+    mountRoleMenu: mountRoleMenu, wireWeekStepper: wireWeekStepper,
     h: h, fmt: fmt, toast: toast, setBusy: setBusy
   };
 })();

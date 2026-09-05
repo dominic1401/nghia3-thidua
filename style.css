@@ -103,15 +103,15 @@ td.best { font-weight: 800; color: var(--gold-deep); }
 .login h2 { margin: 0; font-size: 22px; }
 
 /* Attendance list (Đội trưởng) */
-.att-list { display: grid; gap: 8px; margin-top: 12px; }
+.att-list { display: grid; gap: 8px; margin-top: 12px; padding-bottom: 76px; }
 .att-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
 .att-row .name { font-weight: 600; }
 .att-row .name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-.seg button { border: 0; background: #fff; padding: 10px 14px; font-weight: 700; min-width: 64px; cursor: pointer; color: var(--muted); }
+.seg button { border: 0; background: #fff; padding: 12px 16px; font-weight: 700; min-width: 68px; cursor: pointer; color: var(--muted); }
 .seg button.on-yes { background: var(--ok); color: #fff; }
 .seg button.on-no { background: var(--no); color: #fff; }
-.sticky-bar { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--paper) 30%); padding: 18px 0 10px; }
+.sticky-bar { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--paper) 30%); padding: 18px 0 calc(10px + env(safe-area-inset-bottom, 0px)); }
 .summary-pill { display: inline-flex; gap: 10px; align-items: center; background: var(--gold-soft); color: var(--gold-deep); font-weight: 700; padding: 8px 14px; border-radius: 999px; }
 
 /* Scoring grid (Huynh Trưởng) */
@@ -131,3 +131,40 @@ td.best { font-weight: 800; color: var(--gold-deep); }
 .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
 .toolbar .grow { flex: 1; }
 .updated { font-size: 12px; color: var(--muted); }
+
+/* Thanh chọn Chúa Nhật */
+.weekbar { display: grid; grid-template-columns: 48px 1fr 48px; gap: 8px; align-items: stretch; margin: 18px 0 14px; }
+.weekbar button.step { border: 1px solid var(--line); background: #fff; border-radius: 12px; font-size: 22px; line-height: 1; cursor: pointer; color: var(--ink); }
+.weekbar button.step:disabled { color: var(--line); cursor: default; }
+.weekbar select { height: 100%; text-align: center; text-align-last: center; font-weight: 700; font-size: 17px; border-radius: 12px; padding: 13px 6px; }
+.wknote { margin: -6px 0 14px; font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Hàng thao tác nhanh */
+.quick { display: flex; align-items: center; gap: 14px; margin: 0 0 14px; }
+.quick .btn { padding: 9px 14px; font-size: 14px; }
+.quick .link { background: none; border: 0; padding: 6px 2px; color: var(--ink-2); font-size: 14px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* Nút menu góc dưới phải + bảng chọn vai trò */
+.fab {
+  position: fixed; right: 16px; bottom: calc(var(--fab-bottom, 18px) + env(safe-area-inset-bottom, 0px));
+  width: 56px; height: 56px; border-radius: 50%; border: 0; z-index: 40;
+  background: var(--ink); color: #fff; font-size: 22px; line-height: 1; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(28, 37, 64, .28);
+}
+.fab:active { transform: scale(.95); }
+.fab.inline { position: static; width: 44px; height: 44px; font-size: 18px; box-shadow: none; flex: 0 0 auto; }
+.scrim { position: fixed; inset: 0; background: rgba(28, 37, 64, .45); z-index: 60; }
+.sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 61; background: var(--paper);
+  border-radius: 20px 20px 0 0; padding: 22px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 30px rgba(28, 37, 64, .2); display: grid; gap: 12px;
+  max-width: 520px; margin: 0 auto; animation: rise .18s ease-out;
+}
+@keyframes rise { from { transform: translateY(16px); opacity: 0; } }
+.sheet h2 { margin: 0; font-size: 19px; }
+.sheet .who { margin: -4px 0 4px; font-size: 14px; color: var(--ink-2); }
+.sheet .who b { color: var(--ink); }
+.sheet .row { display: grid; gap: 10px; }
+.sheet .btn { text-align: center; text-decoration: none; padding: 14px; }
+.sheet .danger { color: var(--no); background: #fff; border: 1px solid var(--no-soft); font-weight: 600; }
+.sheet .err { color: var(--no); font-size: 14px; margin: 0; }

@@ -16,11 +16,6 @@
       <h1>Huynh Trưởng chấm điểm</h1>
       <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
     </div>
-    <nav>
-      <a href="index.html">Bảng thi đua</a>
-      <a href="huynhtruong.html" aria-current="page">Huynh Trưởng</a>
-      <a href="doitruong.html">Đội trưởng</a>
-    </nav>
   </header>
 
   <div id="login" class="login" hidden>
@@ -29,6 +24,7 @@
     <div class="field"><label for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off"></div>
     <button class="btn gold block" id="btnLogin">Vào chấm điểm</button>
     <p class="error" id="loginErr" hidden></p>
+    <p class="note" style="text-align:center"><a href="index.html">Xem bảng thi đua</a></p>
   </div>
 
   <div id="app" hidden>
@@ -38,14 +34,15 @@
     </div>
 
     <section class="panel" id="panel-cham">
-      <div class="toolbar">
-        <div class="field"><label for="week">Chúa Nhật</label><select id="week"></select></div>
-        <div class="grow"></div>
-        <button class="btn ghost" id="btnReload">Tải lại</button>
-        <button class="btn ghost" id="btnLogout">Đăng xuất</button>
+      <div class="weekbar">
+        <button class="step" type="button" id="wkPrev" aria-label="Chúa Nhật trước">‹</button>
+      <select id="week" aria-label="Chọn Chúa Nhật"></select>
+        <button class="step" type="button" id="wkNext" aria-label="Chúa Nhật sau">›</button>
       </div>
+      <p class="wknote" id="wkNote"></p>
       <div class="score-grid" id="cards"></div>
       <div class="sticky-bar">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><span id="barRight" style="display:flex"></span></div>
         <button class="btn gold block" id="btnSave">Lưu điểm tuần này</button>
       </div>
       <p class="note">Chuyên cần được tính tự động từ điểm danh của Đội trưởng. Nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
@@ -67,19 +64,21 @@
 <script>
 (function () {
   var h = N3.h, fmt = N3.fmt;
-  var raw = null, model = null;
+  var raw = null, model = null, menu = null, syncStepper = null;
 
   /* ---- login ---- */
   function showLogin(msg) {
     document.getElementById('app').hidden = true;
     document.getElementById('login').hidden = false;
     var e = document.getElementById('loginErr'); e.hidden = !msg; e.textContent = msg || '';
+    if (menu) menu.setRole(null);
   }
   function tryLogin(pin) {
     N3.setBusy(true);
     return N3.apiPost({ action: 'verify', pin: pin }).then(function (res) {
       if (res.role.role !== 'ht') throw new Error('PIN này là của Đội trưởng, không chấm điểm được.');
       N3.savePin(pin);
+      if (menu) menu.setRole({ role: 'ht' });
       document.getElementById('login').hidden = true;
       document.getElementById('app').hidden = false;
       return load();
@@ -87,8 +86,7 @@
   }
   document.getElementById('btnLogin').onclick = function () { tryLogin(document.getElementById('pin').value.trim()); };
   document.getElementById('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
-  document.getElementById('btnLogout').onclick = function () { N3.clearPin(); location.reload(); };
-  document.getElementById('btnReload').onclick = load;
+  menu = N3.mountRoleMenu({ page: 'huynhtruong', role: null, anchor: '#barRight', onReload: function () { load(); } });
 
   /* ---- tabs ---- */
   document.getElementById('tabs').addEventListener('click', function (e) {
@@ -113,14 +111,18 @@
     sel.innerHTML = '';
     var list = N3.sundays(raw.settings.ngayBatDau);
     model.dates.forEach(function (d) { if (list.indexOf(d) === -1) list.push(d); });
+    var today = N3.latestSunday();
     list.sort().reverse().forEach(function (iso) {
       var has = model.dates.indexOf(iso) > -1;
-      sel.appendChild(h('option', { value: iso, text: N3.fmtVN(iso) + (has ? ' ✓' : '') }));
+      sel.appendChild(h('option', { value: iso, text: 'CN ' + N3.fmtVN(iso) + (has ? ' ✓' : '') }));
     });
-    sel.value = cur && list.indexOf(cur) > -1 ? cur : N3.latestSunday();
+    sel.value = cur && list.indexOf(cur) > -1 ? cur : today;
     if (!sel.value) sel.selectedIndex = 0;
+    if (!syncStepper) {
+      syncStepper = N3.wireWeekStepper(sel, document.getElementById('wkPrev'), document.getElementById('wkNext'), renderCards);
+    }
+    syncStepper();
   }
-  document.getElementById('week').onchange = renderCards;
 
   function fillTeams() {
     var sel = document.getElementById('team'); var cur = sel.value;
@@ -133,7 +135,20 @@
   document.getElementById('team').onchange = renderCC;
 
   /* ---- chấm điểm ---- */
+
+  function updateWeekNote() {
+    var el = document.getElementById('wkNote');
+    if (!el) return;
+    var iso = document.getElementById('week').value;
+    var today = N3.latestSunday();
+    if (!iso) { el.textContent = ''; return; }
+    if (iso === today) el.textContent = 'Chúa Nhật tuần này';
+    else if (iso > today) el.textContent = 'Chúa Nhật sắp tới';
+    else el.textContent = 'Chúa Nhật đã qua';
+  }
+
   function renderCards() {
+    updateWeekNote();
     var iso = document.getElementById('week').value;
     var box = document.getElementById('cards'); box.innerHTML = '';
     Object.keys(model.teams).map(Number).sort().forEach(function (d) {

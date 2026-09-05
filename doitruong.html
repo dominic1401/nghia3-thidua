@@ -16,10 +16,6 @@
       <h1 id="title">Điểm danh</h1>
       <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
     </div>
-    <nav>
-      <a href="index.html">Bảng thi đua</a>
-      <a href="doitruong.html" aria-current="page">Đội trưởng</a>
-    </nav>
   </header>
 
   <div id="login" class="login" hidden>
@@ -28,19 +24,25 @@
     <div class="field"><label for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off"></div>
     <button class="btn gold block" id="btnLogin">Vào điểm danh</button>
     <p class="error" id="loginErr" hidden></p>
+    <p class="note" style="text-align:center"><a href="index.html">Xem bảng thi đua</a></p>
   </div>
 
   <div id="app" hidden>
-    <div class="toolbar">
-      <div class="field" id="teamField" hidden><label for="team">Đội</label><select id="team"></select></div>
-      <div class="field"><label for="week">Chúa Nhật</label><select id="week"></select></div>
-      <div class="grow"></div>
-      <button class="btn ghost" id="btnLogout">Đăng xuất</button>
+    <div class="field" id="teamField" hidden>
+      <label for="team">Đội</label>
+      <select id="team"></select>
     </div>
 
-    <div class="toolbar">
-      <button class="btn ghost" id="btnAllYes">Tất cả có mặt</button>
-      <button class="btn ghost" id="btnAllNo">Tất cả vắng</button>
+    <div class="weekbar">
+      <button class="step" type="button" id="wkPrev" aria-label="Chúa Nhật trước">‹</button>
+      <select id="week" aria-label="Chọn Chúa Nhật"></select>
+      <button class="step" type="button" id="wkNext" aria-label="Chúa Nhật sau">›</button>
+    </div>
+    <p class="wknote" id="wkNote"></p>
+
+    <div class="quick">
+      <button class="btn ghost" type="button" id="btnAllYes">Tất cả có mặt</button>
+      <button class="link" type="button" id="btnAllNo">Đánh dấu tất cả vắng</button>
     </div>
 
     <div class="att-list" id="list"></div>
@@ -48,7 +50,10 @@
     <div class="sticky-bar">
       <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:10px">
         <span class="summary-pill" id="summary">0 / 0 có mặt</span>
-        <span class="updated" id="saved"></span>
+        <span style="display:flex;gap:12px;align-items:center">
+          <span class="updated" id="saved"></span>
+          <span id="barRight" style="display:flex"></span>
+        </span>
       </div>
       <button class="btn gold block" id="btnSave">Lưu điểm danh</button>
     </div>
@@ -60,17 +65,19 @@
 <script>
 (function () {
   var h = N3.h;
-  var raw = null, model = null, role = null, state = {}; // state[id] = {coMat, ghiChu}
+  var raw = null, model = null, role = null, state = {}, menu = null, syncStepper = null;
 
   function showLogin(msg) {
     document.getElementById('app').hidden = true;
     document.getElementById('login').hidden = false;
     var e = document.getElementById('loginErr'); e.hidden = !msg; e.textContent = msg || '';
+    if (menu) menu.setRole(null);
   }
   function tryLogin(pin) {
     N3.setBusy(true);
     return N3.apiPost({ action: 'verify', pin: pin }).then(function (res) {
       role = res.role; N3.savePin(pin);
+      if (menu) menu.setRole(role);
       document.getElementById('login').hidden = true;
       document.getElementById('app').hidden = false;
       return load();
@@ -78,7 +85,8 @@
   }
   document.getElementById('btnLogin').onclick = function () { tryLogin(document.getElementById('pin').value.trim()); };
   document.getElementById('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
-  document.getElementById('btnLogout').onclick = function () { N3.clearPin(); location.reload(); };
+
+  menu = N3.mountRoleMenu({ page: 'doitruong', role: null, anchor: '#barRight', onReload: function () { load(); } });
 
   function load() {
     N3.setBusy(true);
@@ -102,14 +110,33 @@
     sel.innerHTML = '';
     var list = N3.sundays(raw.settings.ngayBatDau);
     model.dates.forEach(function (d) { if (list.indexOf(d) === -1) list.push(d); });
-    list.sort().reverse().forEach(function (iso) { sel.appendChild(h('option', { value: iso, text: N3.fmtVN(iso) })); });
-    sel.value = cur && list.indexOf(cur) > -1 ? cur : N3.latestSunday();
+    var today = N3.latestSunday();
+    list.sort().reverse().forEach(function (iso) {
+      sel.appendChild(h('option', { value: iso, text: 'CN ' + N3.fmtVN(iso) }));
+    });
+    sel.value = cur && list.indexOf(cur) > -1 ? cur : today;
     if (!sel.value) sel.selectedIndex = 0;
+    if (!syncStepper) {
+      syncStepper = N3.wireWeekStepper(sel, document.getElementById('wkPrev'), document.getElementById('wkNext'), renderList);
+    }
+    syncStepper();
   }
-  document.getElementById('week').onchange = renderList;
   document.getElementById('team').onchange = renderList;
 
+
+  function updateWeekNote() {
+    var el = document.getElementById('wkNote');
+    if (!el) return;
+    var iso = document.getElementById('week').value;
+    var today = N3.latestSunday();
+    if (!iso) { el.textContent = ''; return; }
+    if (iso === today) el.textContent = 'Chúa Nhật tuần này';
+    else if (iso > today) el.textContent = 'Chúa Nhật sắp tới';
+    else el.textContent = 'Chúa Nhật đã qua';
+  }
+
   function renderList() {
+    updateWeekNote();
     var d = currentTeam(), iso = document.getElementById('week').value;
     var t = model.teams[d]; var wk = t.weekly[iso];
     document.getElementById('title').textContent = 'Điểm danh ' + t.name;
@@ -149,7 +176,10 @@
     document.getElementById('summary').textContent = p + ' / ' + ids.length + ' có mặt' + (unset ? ' · còn ' + unset + ' chưa chọn' : '');
   }
   document.getElementById('btnAllYes').onclick = function () { Object.keys(state).forEach(function (i) { set(i, true); }); };
-  document.getElementById('btnAllNo').onclick = function () { Object.keys(state).forEach(function (i) { set(i, false); }); };
+  document.getElementById('btnAllNo').onclick = function () {
+    if (!confirm('Đánh dấu cả đội là vắng?')) return;
+    Object.keys(state).forEach(function (i) { set(i, false); });
+  };
 
   document.getElementById('btnSave').onclick = function () {
     var ids = Object.keys(state);
