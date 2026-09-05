@@ -194,6 +194,9 @@
     if (!dates.length) { box.appendChild(h('div', { class: 'empty', text: t.name + ' chưa có buổi điểm danh nào.' })); return; }
 
     box.appendChild(h('p', { class: 'note', text: 'Tổng: có mặt ' + t.season.present + '/' + t.season.recorded + ' lượt (' + t.season.rate + '%) qua ' + dates.length + ' buổi. Đội có ' + t.active.length + ' em đang sinh hoạt.' }));
+    if (model.droppedRecords) {
+      box.appendChild(h('p', { class: 'note', style: { color: 'var(--muted)' }, text: 'Các em đã đánh dấu NGHỈ LUÔN trong danh sách lớp được loại khỏi mọi phép tính, kể cả những tuần đã điểm danh trước đó, nên tỉ lệ chuyên cần luôn theo sĩ số hiện tại.' }));
+    }
 
     // ma trận em × ngày
     var tw = h('div', { class: 'table-wrap' }); var tbl = h('table');

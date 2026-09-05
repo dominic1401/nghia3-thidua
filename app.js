@@ -109,17 +109,24 @@
     var w = data.settings.weights;
     var teams = {};
     data.roster.forEach(function (t) {
+      var activeIds = {};
+      t.members.forEach(function (m) { if (m.active) activeIds[m.id] = 1; });
       teams[t.doi] = {
         doi: t.doi, name: 'Đội ' + t.doi, color: TEAM_COLORS[t.doi] || '#444',
         members: t.members, active: t.members.filter(function (m) { return m.active; }),
-        weekly: {}, season: null, rank: 0
+        activeIds: activeIds, weekly: {}, season: null, rank: 0
       };
     });
 
     var dateSet = {};
     var attByKey = {}; // ngay|doi -> [records]
+    var dropped = 0;
     data.attendance.forEach(function (a) {
-      if (!teams[a.doi]) return;
+      var t = teams[a.doi];
+      if (!t) return;
+      // Em đã chuyển sang NGHỈ LUÔN thì bỏ khỏi mọi phép tính, kể cả các tuần
+      // đã điểm danh trước đó, để chuyên cần luôn phản ánh sĩ số hiện tại.
+      if (!t.activeIds[a.id]) { dropped++; return; }
       var k = a.ngay + '|' + a.doi;
       (attByKey[k] = attByKey[k] || []).push(a);
       dateSet[a.ngay] = 1;
@@ -172,7 +179,7 @@
     });
     ranking.forEach(function (doi, i) { teams[doi].rank = i + 1; });
 
-    return { dates: dates, teams: teams, ranking: ranking, weights: w };
+    return { dates: dates, teams: teams, ranking: ranking, weights: w, droppedRecords: dropped };
   }
 
   /** Xếp hạng theo 1 tiêu chí ('cc'|'ht'|'kl') dùng tổng điểm tiêu chí đó */
