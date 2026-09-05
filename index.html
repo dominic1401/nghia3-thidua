@@ -6,25 +6,26 @@
 <title>Bảng thi đua Nghĩa 3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="icon" href="logo.png">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="wrap">
   <header class="mast">
-    <div>
+    <div class="brand"><img class="logo" src="logo.png" alt="Huy hiệu lớp Nghĩa Sĩ 3" width="76" height="76"><div>
       <p class="org" id="org">Đoàn Thiếu Nhi Thánh Tâm – Giáo xứ Gia Định</p>
       <h1 id="title">Bảng thi đua lớp Nghĩa 3</h1>
       <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
-    </div>
+    </div></div>
   </header>
 
   <div id="status"></div>
 
   <div class="tabs" role="tablist" id="tabs">
-    <button role="tab" aria-selected="true" data-tab="tong">Tổng hợp</button>
-    <button role="tab" data-tab="cc">Chuyên cần</button>
-    <button role="tab" data-tab="ht">Học tập</button>
-    <button role="tab" data-tab="kl">Kỷ luật</button>
+    <button role="tab" aria-selected="true" data-tab="tong">🏆 Tổng hợp</button>
+    <button role="tab" data-tab="cc">🔥 Chuyên cần</button>
+    <button role="tab" data-tab="ht">📖 Học tập</button>
+    <button role="tab" data-tab="kl">🛡️ Kỷ luật</button>
   </div>
 
   <section class="panel" id="panel-tong"></section>
@@ -79,32 +80,130 @@
     renderCriterion('kl', 'Kỷ luật', function (wk) { return fmt(wk.kl); });
   }
 
+  /** Xếp hạng lũy kế tính đến trước tuần mới nhất, để biết đội lên/xuống mấy bậc */
+  function previousRanking() {
+    if (model.dates.length < 2) return null;
+    var upto = model.dates.slice(0, -1);
+    var totals = Object.keys(model.teams).map(Number).map(function (doi) {
+      var t = model.teams[doi], sum = 0;
+      upto.forEach(function (iso) { if (t.weekly[iso] && t.weekly[iso].hasData) sum += t.weekly[iso].total; });
+      return { doi: doi, sum: sum };
+    });
+    totals.sort(function (a, b) { return (b.sum - a.sum) || (a.doi - b.doi); });
+    var map = {};
+    totals.forEach(function (x, i) { map[x.doi] = i + 1; });
+    return map;
+  }
+
+  /** Số Chúa Nhật liên tiếp gần nhất đội đi đủ (chuyên cần 10) */
+  function streak(t) {
+    var n = 0;
+    for (var i = model.dates.length - 1; i >= 0; i--) {
+      var wk = t.weekly[model.dates[i]];
+      if (wk && wk.recorded && wk.cc === 10) n++; else break;
+    }
+    return n;
+  }
+
   function renderTong() {
     var p = document.getElementById('panel-tong'); p.innerHTML = '';
     if (!model.dates.length) {
       p.appendChild(h('div', { class: 'empty', text: 'Chưa có tuần nào được điểm danh hay chấm điểm. Bảng xếp hạng sẽ xuất hiện sau Chúa Nhật đầu tiên.' }));
       return;
     }
+
+    // Quán quân tuần gần nhất
+    var lastISO = model.dates[model.dates.length - 1];
+    var weekOrder = model.ranking.slice().sort(function (a, b) {
+      return (model.teams[b].weekly[lastISO].total - model.teams[a].weekly[lastISO].total) || (a - b);
+    });
+    var champ = model.teams[weekOrder[0]];
+    if (champ.weekly[lastISO].hasData) {
+      p.appendChild(h('div', { class: 'champ' }, [
+        h('div', { class: 'big', text: '🏆' }),
+        h('div', null, [
+          h('span', { text: 'Quán quân Chúa Nhật ' + N3.fmtVN(lastISO) }),
+          champ.name + ' · ' + fmt(champ.weekly[lastISO].total, 2) + ' điểm'
+        ])
+      ]));
+    }
+
+    // Bục vinh danh 3 đội dẫn đầu (thứ tự trưng bày: nhì – nhất – ba)
+    var top = model.ranking.slice(0, 3);
+    if (top.length === 3) {
+      var order = [top[1], top[0], top[2]];
+      var pod = h('div', { class: 'podium' });
+      order.forEach(function (doi) {
+        var t = model.teams[doi];
+        pod.appendChild(h('div', { class: 'pod p' + t.rank, style: { '--team': t.color } }, [
+          h('div', { class: 'crown', text: t.rank === 1 ? '👑' : '' }),
+          h('div', { class: 'avatar', text: String(t.doi) }),
+          h('div', { class: 'who', text: t.name }),
+          h('div', { class: 'pts', text: fmt(t.season.total, 1) }),
+          h('div', { class: 'block' }, [h('b', { text: String(t.rank) })])
+        ]));
+      });
+      p.appendChild(pod);
+    }
+
+    // Bảng xếp hạng đầy đủ
+    var prev = previousRanking();
     var max = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season.total; })) || 1;
-    var list = h('div', { class: 'standings' });
-    model.ranking.forEach(function (doi, i) {
-      var t = model.teams[doi];
-      list.appendChild(h('div', { class: 'stand' + (i === 0 ? ' first' : ''), style: { '--team': t.color } }, [
-        h('div', { class: 'pos', text: String(i + 1) }),
-        h('div', { class: 'bar-wrap' }, [
-          h('div', { class: 'label' }, [
-            h('b', { text: t.name }),
-            h('span', { text: t.active.length + ' em · CC ' + fmt(t.season.cc) + ' · HT ' + fmt(t.season.ht) + ' · KL ' + fmt(t.season.kl) })
-          ]),
-          h('div', { class: 'bar' }, [h('i', { style: { width: (t.season.total / max * 100) + '%' } })])
+    var medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
+    var bestCC = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season.cc || 0; }));
+    var bestHT = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season.ht || 0; }));
+    var bestKL = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season.kl || 0; }));
+
+    var lb = h('div', { class: 'lb' });
+    model.ranking.forEach(function (doi) {
+      var t = model.teams[doi], se = t.season;
+      var move = null;
+      if (prev && prev[doi]) {
+        var d = prev[doi] - t.rank;
+        move = h('span', { class: 'move ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'same'), text: d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : '–' });
+      }
+      var chips = h('div', { class: 'chips' }, [
+        h('span', { class: 'chip' + (se.cc === bestCC && bestCC > 0 ? ' win' : ''), text: '🔥 Chuyên cần ' + fmt(se.cc) }),
+        h('span', { class: 'chip' + (se.ht === bestHT && bestHT > 0 ? ' win' : ''), text: '📖 Học tập ' + fmt(se.ht) }),
+        h('span', { class: 'chip' + (se.kl === bestKL && bestKL > 0 ? ' win' : ''), text: '🛡️ Kỷ luật ' + fmt(se.kl) })
+      ]);
+      var st = streak(t);
+      if (st >= 2) chips.appendChild(h('span', { class: 'chip win', text: '⚡ ' + st + ' tuần đi đủ' }));
+
+      lb.appendChild(h('div', { class: 'lb-row' + (t.rank === 1 ? ' lead' : ''), style: { '--team': t.color } }, [
+        h('div', { class: 'medal' + (medals[t.rank] ? '' : ' plain'), text: medals[t.rank] || String(t.rank) }),
+        h('div', null, [
+          h('div', { class: 'head' }, [h('b', { text: t.name }), h('span', { class: 'chip', text: t.active.length + ' em' }), move]),
+          h('div', { class: 'xp' }, [h('i', { style: { width: (se.total / max * 100) + '%' } })]),
+          chips
         ]),
-        h('div', { class: 'score', text: fmt(t.season.total, 1) }, [h('small', { text: 'TB ' + fmt(t.season.avg, 1) + '/tuần' })])
+        h('div', { class: 'pts', text: fmt(se.total, 1) }, [h('small', { text: 'TB ' + fmt(se.avg, 1) + '/tuần' })])
       ]));
     });
-    p.appendChild(list);
+    p.appendChild(lb);
 
-    // Bảng tổng theo tuần
-    p.appendChild(h('h2', { text: 'Điểm tổng theo tuần', style: { fontSize: '18px', margin: '32px 0 10px' } }));
+    // Huy hiệu theo tiêu chí
+    var awards = [
+      { ico: '🔥', title: 'Chuyên cần nhất', key: 'cc' },
+      { ico: '📖', title: 'Học tập giỏi nhất', key: 'ht' },
+      { ico: '🛡️', title: 'Kỷ luật tốt nhất', key: 'kl' }
+    ];
+    var box = h('div', { class: 'awards' });
+    awards.forEach(function (a) {
+      var winner = N3.rankBy(model, a.key)[0];
+      var t = model.teams[winner];
+      if (!t || t.season[a.key] === null) return;
+      box.appendChild(h('div', { class: 'award' }, [
+        h('div', { class: 'ico', text: a.ico }),
+        h('div', null, [h('b', { text: t.name }), h('span', { text: a.title + ' · ' + fmt(t.season[a.key]) + '/10' })])
+      ]));
+    });
+    if (box.children.length) {
+      p.appendChild(h('h2', { class: 'sec' }, ['🎖️ Huy hiệu mùa giải']));
+      p.appendChild(box);
+    }
+
+    p.appendChild(h('h2', { class: 'sec' }, ['📅 Điểm tổng theo tuần']));
     p.appendChild(weekTable(function (wk) { return wk.hasData ? fmt(wk.total, 2) : '–'; }, 'total'));
   }
 
@@ -135,7 +234,7 @@
     });
     tbl.appendChild(tb); tw.appendChild(tbl); p.appendChild(tw);
 
-    p.appendChild(h('h2', { text: label + ' theo tuần', style: { fontSize: '18px', margin: '28px 0 10px' } }));
+    p.appendChild(h('h2', { class: 'sec', text: '📅 ' + label + ' theo tuần' }));
     p.appendChild(weekTable(cell, key));
   }
 

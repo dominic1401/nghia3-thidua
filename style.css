@@ -33,6 +33,77 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 .wrap { max-width: 1120px; margin: 0 auto; padding: 20px clamp(14px, 3vw, 32px) 64px; }
 
+/* Logo lớp */
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo { width: 76px; height: 76px; object-fit: contain; flex: 0 0 auto; }
+@media (max-width: 560px) { .logo { width: 56px; height: 56px; } .brand { gap: 10px; } }
+
+/* ---------- Bảng xếp hạng kiểu trò chơi ---------- */
+.champ {
+  display: flex; align-items: center; gap: 12px; margin: 20px 0 6px; padding: 12px 16px;
+  background: linear-gradient(100deg, var(--gold-soft), var(--paper-2)); border: 1px solid var(--gold);
+  border-radius: 14px; font-weight: 600;
+}
+.champ .big { font-size: 26px; line-height: 1; }
+.champ span { color: var(--ink-2); font-weight: 500; font-size: 14px; display: block; }
+
+/* Bục vinh danh */
+.podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 8px; margin: 26px 0 30px; }
+.pod { text-align: center; }
+.pod .crown { font-size: 24px; height: 30px; line-height: 30px; }
+.pod .avatar {
+  width: 58px; height: 58px; margin: 0 auto 8px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--team); color: #fff; font-weight: 800; font-size: 20px; border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(28, 37, 64, .22);
+}
+.pod .who { font-weight: 700; font-size: 15px; }
+.pod .pts { font-size: 20px; font-weight: 800; letter-spacing: -.02em; }
+.pod .block {
+  margin-top: 8px; border: 1px solid var(--line); border-bottom: 0; border-radius: 12px 12px 0 0;
+  background: var(--paper-2); display: grid; place-items: center; padding: 8px 4px;
+}
+.pod .block b { font-size: 28px; color: var(--muted); }
+.pod.p1 .block { height: 104px; background: linear-gradient(180deg, var(--gold), #F7D877); }
+.pod.p1 .block b { color: #fff; font-size: 34px; }
+.pod.p2 .block { height: 78px; }
+.pod.p3 .block { height: 58px; }
+@media (max-width: 400px) { .pod .avatar { width: 48px; height: 48px; font-size: 17px; } .pod .who { font-size: 13px; } }
+
+/* Hàng xếp hạng */
+.lb { display: grid; gap: 10px; }
+.lb-row {
+  display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px;
+}
+.lb-row.lead { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.lb-row .medal { font-size: 26px; text-align: center; }
+.lb-row .medal.plain { font-size: 19px; font-weight: 800; color: var(--muted); }
+.lb-row .head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.lb-row .head b { font-size: 17px; }
+.lb-row .head .move { font-size: 13px; font-weight: 700; }
+.move.up { color: var(--ok); } .move.down { color: var(--no); } .move.same { color: var(--muted); }
+.xp { height: 12px; background: var(--paper-2); border-radius: 99px; overflow: hidden; margin: 8px 0; }
+.xp i { display: block; height: 100%; border-radius: 99px; background: var(--team); transition: width .8s cubic-bezier(.2, .8, .2, 1); min-width: 6px; }
+.lb-row.lead .xp i { background: linear-gradient(90deg, var(--gold-deep), var(--gold)); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--paper-2); border-radius: 99px; padding: 4px 9px; }
+.chip.win { background: var(--gold-soft); color: var(--gold-deep); }
+.lb-row .pts { font-size: 26px; font-weight: 800; letter-spacing: -.02em; text-align: right; }
+.lb-row .pts small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+@media (max-width: 480px) {
+  .lb-row { grid-template-columns: 34px 1fr; row-gap: 4px; padding: 12px; }
+  .lb-row .pts { grid-column: 2; text-align: left; font-size: 21px; }
+  .lb-row .pts small { display: inline; margin-left: 6px; }
+}
+
+/* Huy hiệu tuần */
+.awards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-top: 12px; }
+.award { display: flex; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.award .ico { font-size: 24px; }
+.award b { display: block; font-size: 15px; }
+.award span { font-size: 13px; color: var(--ink-2); }
+h2.sec { font-size: 18px; margin: 30px 0 10px; display: flex; align-items: center; gap: 8px; }
+
 /* Masthead */
 .mast { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 8px 0 18px; border-bottom: 3px solid var(--gold); }
 .mast .org { font-size: 13px; color: var(--ink-2); margin: 0; }
