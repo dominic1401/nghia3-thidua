@@ -23,21 +23,30 @@
     return url;
   }
 
+  function withTimeout(p, ms) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var t = setTimeout(function () { if (!done) { done = true; reject(new Error('Máy chủ không phản hồi sau ' + (ms / 1000) + ' giây. Kiểm tra mạng rồi bấm Tải lại.')); } }, ms);
+      p.then(function (v) { if (!done) { done = true; clearTimeout(t); resolve(v); } },
+             function (e) { if (!done) { done = true; clearTimeout(t); reject(e); } });
+    });
+  }
+
   function apiGet(action) {
     var url = ensureApiUrl();
     if (!url) return Promise.reject(new Error('Chưa cấu hình URL API'));
-    return fetch(url + '?action=' + action + '&t=' + Date.now(), { redirect: 'follow' })
+    return withTimeout(fetch(url + '?action=' + action + '&t=' + Date.now(), { redirect: 'follow' })
       .then(function (r) { return r.json(); })
-      .then(unwrap);
+      .then(unwrap), 30000);
   }
 
   function apiPost(payload) {
     var url = ensureApiUrl();
     if (!url) return Promise.reject(new Error('Chưa cấu hình URL API'));
     // Không đặt Content-Type để tránh CORS preflight (Apps Script không hỗ trợ OPTIONS)
-    return fetch(url, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' })
+    return withTimeout(fetch(url, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' })
       .then(function (r) { return r.json(); })
-      .then(unwrap);
+      .then(unwrap), 30000);
   }
 
   function unwrap(res) {
@@ -51,8 +60,10 @@
     return y + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
   }
   function fromISO(s) {
-    var p = s.split('-');
-    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    if (!/^\d{4}-\d{2}-\d{2}/.test(String(s || ''))) return null;
+    var p = String(s).split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2].slice(0, 2)));
+    return isNaN(d.getTime()) ? null : d;
   }
   function fmtVN(iso) {
     if (!iso) return '';
@@ -63,14 +74,19 @@
     var p = iso.split('-');
     return p[2] + '/' + p[1];
   }
-  /** Danh sách Chúa Nhật từ ngày bắt đầu đến CN kế tiếp hôm nay */
+  /**
+   * Danh sách Chúa Nhật từ ngày bắt đầu đến Chúa Nhật kế tiếp hôm nay.
+   * Nếu ngày bắt đầu trống/sai định dạng thì lùi về 12 tuần gần nhất,
+   * và mọi vòng lặp đều có trần lặp để trang không bao giờ bị treo.
+   */
   function sundays(startISO) {
-    var out = [];
-    var d = startISO ? fromISO(startISO) : new Date();
-    // đẩy tới Chúa Nhật gần nhất
-    while (d.getDay() !== 0) d.setDate(d.getDate() + 1);
     var limit = new Date(); limit.setDate(limit.getDate() + 7);
-    while (d <= limit) { out.push(toISO(d)); d.setDate(d.getDate() + 7); }
+    var d = fromISO(startISO);
+    if (!d) { d = new Date(); d.setDate(d.getDate() - 84); }
+    if (d > limit) d = new Date(limit);
+    for (var i = 0; i < 7 && d.getDay() !== 0; i++) d.setDate(d.getDate() + 1);
+    var out = [];
+    for (var n = 0; n < 260 && d <= limit; n++) { out.push(toISO(d)); d.setDate(d.getDate() + 7); }
     return out;
   }
   /** Chúa Nhật gần nhất (hôm nay nếu là CN, ngược lại CN vừa qua) */
