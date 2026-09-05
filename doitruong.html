@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Điểm danh · Nghĩa 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap" style="max-width:640px">
+  <header class="mast">
+    <div>
+      <p class="org">Lớp Nghĩa 3</p>
+      <h1 id="title">Điểm danh</h1>
+      <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
+    </div>
+    <nav>
+      <a href="index.html">Bảng thi đua</a>
+      <a href="doitruong.html" aria-current="page">Đội trưởng</a>
+    </nav>
+  </header>
+
+  <div id="login" class="login" hidden>
+    <h2>Nhập PIN của đội</h2>
+    <p class="note">Mỗi Đội trưởng có một PIN riêng do Huynh Trưởng cấp.</p>
+    <div class="field"><label for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off"></div>
+    <button class="btn gold block" id="btnLogin">Vào điểm danh</button>
+    <p class="error" id="loginErr" hidden></p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="toolbar">
+      <div class="field" id="teamField" hidden><label for="team">Đội</label><select id="team"></select></div>
+      <div class="field"><label for="week">Chúa Nhật</label><select id="week"></select></div>
+      <div class="grow"></div>
+      <button class="btn ghost" id="btnLogout">Đăng xuất</button>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn ghost" id="btnAllYes">Tất cả có mặt</button>
+      <button class="btn ghost" id="btnAllNo">Tất cả vắng</button>
+    </div>
+
+    <div class="att-list" id="list"></div>
+
+    <div class="sticky-bar">
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <span class="summary-pill" id="summary">0 / 0 có mặt</span>
+        <span class="updated" id="saved"></span>
+      </div>
+      <button class="btn gold block" id="btnSave">Lưu điểm danh</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var h = N3.h;
+  var raw = null, model = null, role = null, state = {}; // state[id] = {coMat, ghiChu}
+
+  function showLogin(msg) {
+    document.getElementById('app').hidden = true;
+    document.getElementById('login').hidden = false;
+    var e = document.getElementById('loginErr'); e.hidden = !msg; e.textContent = msg || '';
+  }
+  function tryLogin(pin) {
+    N3.setBusy(true);
+    return N3.apiPost({ action: 'verify', pin: pin }).then(function (res) {
+      role = res.role; N3.savePin(pin);
+      document.getElementById('login').hidden = true;
+      document.getElementById('app').hidden = false;
+      return load();
+    }).catch(function (err) { showLogin(err.message); }).finally(function () { N3.setBusy(false); });
+  }
+  document.getElementById('btnLogin').onclick = function () { tryLogin(document.getElementById('pin').value.trim()); };
+  document.getElementById('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
+  document.getElementById('btnLogout').onclick = function () { N3.clearPin(); location.reload(); };
+
+  function load() {
+    N3.setBusy(true);
+    return N3.apiGet('data').then(function (res) {
+      raw = res.data; model = N3.compute(raw);
+      document.getElementById('theme').textContent = raw.settings.chuDe || '';
+      // HT được chọn đội; Đội trưởng khoá đúng đội mình
+      var tf = document.getElementById('teamField'), ts = document.getElementById('team');
+      ts.innerHTML = '';
+      Object.keys(model.teams).map(Number).sort().forEach(function (d) { ts.appendChild(h('option', { value: d, text: model.teams[d].name })); });
+      if (role.role === 'ht') { tf.hidden = false; } else { tf.hidden = true; ts.value = role.doi; }
+      fillWeeks(); renderList();
+    }).catch(function (err) { N3.toast('Không tải được dữ liệu: ' + err.message, 'err'); })
+      .finally(function () { N3.setBusy(false); });
+  }
+
+  function currentTeam() { return Number(document.getElementById('team').value); }
+
+  function fillWeeks() {
+    var sel = document.getElementById('week'); var cur = sel.value;
+    sel.innerHTML = '';
+    var list = N3.sundays(raw.settings.ngayBatDau);
+    model.dates.forEach(function (d) { if (list.indexOf(d) === -1) list.push(d); });
+    list.sort().reverse().forEach(function (iso) { sel.appendChild(h('option', { value: iso, text: N3.fmtVN(iso) })); });
+    sel.value = cur && list.indexOf(cur) > -1 ? cur : N3.latestSunday();
+    if (!sel.value) sel.selectedIndex = 0;
+  }
+  document.getElementById('week').onchange = renderList;
+  document.getElementById('team').onchange = renderList;
+
+  function renderList() {
+    var d = currentTeam(), iso = document.getElementById('week').value;
+    var t = model.teams[d]; var wk = t.weekly[iso];
+    document.getElementById('title').textContent = 'Điểm danh ' + t.name;
+    state = {};
+    var existing = {};
+    if (wk) wk.attendance.forEach(function (a) { existing[a.id] = a; });
+    var list = document.getElementById('list'); list.innerHTML = '';
+    t.active.forEach(function (m) {
+      var ex = existing[m.id];
+      state[m.id] = { hoTen: m.tenThanh + ' ' + m.hoTen, coMat: ex ? ex.coMat : null, ghiChu: ex ? ex.ghiChu : '' };
+      var yes = h('button', { type: 'button', text: 'Có mặt', onclick: function () { set(m.id, true); } });
+      var no = h('button', { type: 'button', text: 'Vắng', onclick: function () { set(m.id, false); } });
+      var note = h('input', { type: 'text', placeholder: 'Ghi chú (vd: có phép)', value: state[m.id].ghiChu, style: { marginTop: '8px', padding: '8px 10px', fontSize: '14px' }, hidden: 'hidden' });
+      note.oninput = function () { state[m.id].ghiChu = note.value; };
+      var row = h('div', { class: 'att-row', 'data-id': m.id }, [
+        h('div', null, [h('div', { class: 'name' }, [m.tenThanh + ' ' + m.hoTen, m.role ? h('small', { text: m.role }) : null]), note]),
+        h('div', { class: 'seg' }, [yes, no])
+      ]);
+      row._yes = yes; row._no = no; row._note = note;
+      list.appendChild(row);
+      paint(m.id);
+    });
+    var saved = wk && wk.recorded ? 'Đã lưu ' + wk.present + '/' + wk.recorded : 'Chưa lưu buổi này';
+    document.getElementById('saved').textContent = saved;
+    updateSummary();
+  }
+
+  function set(id, v) { state[id].coMat = v; paint(id); updateSummary(); }
+  function paint(id) {
+    var row = document.querySelector('.att-row[data-id="' + id + '"]'); var s = state[id];
+    row._yes.className = s.coMat === true ? 'on-yes' : ''; row._no.className = s.coMat === false ? 'on-no' : '';
+    row._note.hidden = s.coMat !== false; if (s.coMat === false) row._note.removeAttribute('hidden');
+  }
+  function updateSummary() {
+    var ids = Object.keys(state), p = ids.filter(function (i) { return state[i].coMat === true; }).length;
+    var unset = ids.filter(function (i) { return state[i].coMat === null; }).length;
+    document.getElementById('summary').textContent = p + ' / ' + ids.length + ' có mặt' + (unset ? ' · còn ' + unset + ' chưa chọn' : '');
+  }
+  document.getElementById('btnAllYes').onclick = function () { Object.keys(state).forEach(function (i) { set(i, true); }); };
+  document.getElementById('btnAllNo').onclick = function () { Object.keys(state).forEach(function (i) { set(i, false); }); };
+
+  document.getElementById('btnSave').onclick = function () {
+    var ids = Object.keys(state);
+    var unset = ids.filter(function (i) { return state[i].coMat === null; });
+    if (unset.length && !confirm('Còn ' + unset.length + ' em chưa chọn, sẽ tính là vắng. Lưu luôn?')) return;
+    var iso = document.getElementById('week').value, d = currentTeam();
+    var records = ids.map(function (i) { return { id: i, hoTen: state[i].hoTen, coMat: state[i].coMat === true, ghiChu: state[i].ghiChu || '' }; });
+    N3.setBusy(true);
+    N3.apiPost({ action: 'saveAttendance', pin: N3.savedPin(), doi: d, ngay: iso, records: records }).then(function (res) {
+      raw = res.data; model = N3.compute(raw);
+      renderList();
+      N3.toast('Đã lưu điểm danh ' + N3.fmtVN(iso), 'ok');
+    }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
+      .finally(function () { N3.setBusy(false); });
+  };
+
+  var pin = N3.savedPin();
+  if (pin) tryLogin(pin); else showLogin();
+})();
+</script>
+</body>
+</html>

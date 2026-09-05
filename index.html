@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bảng thi đua Nghĩa 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <p class="org" id="org">Đoàn Thiếu Nhi Thánh Tâm – Giáo xứ Gia Định</p>
+      <h1 id="title">Bảng thi đua lớp Nghĩa 3</h1>
+      <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
+    </div>
+    <nav>
+      <a href="index.html" aria-current="page">Bảng thi đua</a>
+      <a href="huynhtruong.html">Huynh Trưởng</a>
+      <a href="doitruong.html">Đội trưởng</a>
+    </nav>
+  </header>
+
+  <div id="status"></div>
+
+  <div class="tabs" role="tablist" id="tabs">
+    <button role="tab" aria-selected="true" data-tab="tong">Tổng hợp</button>
+    <button role="tab" data-tab="cc">Chuyên cần</button>
+    <button role="tab" data-tab="ht">Học tập</button>
+    <button role="tab" data-tab="kl">Kỷ luật</button>
+  </div>
+
+  <section class="panel" id="panel-tong"></section>
+  <section class="panel" id="panel-cc" hidden></section>
+  <section class="panel" id="panel-ht" hidden></section>
+  <section class="panel" id="panel-kl" hidden></section>
+
+  <p class="note" id="rule" style="margin-top:28px"></p>
+  <p class="updated" id="updated"></p>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var h = N3.h, fmt = N3.fmt;
+  var model = null, raw = null;
+
+  /* Tabs */
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-tab]'); if (!b) return;
+    document.querySelectorAll('#tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
+    document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== 'panel-' + b.dataset.tab; });
+  });
+
+  function load() {
+    document.getElementById('status').innerHTML = '<p class="note">Đang tải dữ liệu…</p>';
+    N3.apiGet('data').then(function (res) {
+      raw = res.data; model = N3.compute(raw);
+      document.getElementById('status').innerHTML = '';
+      render();
+    }).catch(function (err) {
+      document.getElementById('status').innerHTML =
+        '<div class="error">Không tải được dữ liệu: ' + err.message +
+        '. Kiểm tra URL Apps Script trong config.js hoặc <button class="btn ghost" onclick="N3.resetApi();location.reload()">nhập lại URL</button></div>';
+    });
+  }
+
+  function render() {
+    var s = raw.settings;
+    document.getElementById('org').textContent = s.xuDoan || '';
+    document.getElementById('title').textContent = 'Bảng thi đua lớp ' + (s.lop || 'Nghĩa 3') + ' · ' + (s.namHoc || '');
+    document.getElementById('theme').textContent = s.chuDe || '';
+    document.getElementById('rule').textContent =
+      'Điểm tuần = ' + s.weights.cc + '% chuyên cần + ' + s.weights.ht + '% học tập + ' + s.weights.kl +
+      '% kỷ luật (mỗi tiêu chí thang 10). Chuyên cần tính tự động từ điểm danh của Đội trưởng; xếp hạng theo tổng điểm lũy kế cả năm.';
+    document.getElementById('updated').textContent = 'Cập nhật ' + new Date(raw.generatedAt).toLocaleString('vi-VN');
+
+    renderTong();
+    renderCriterion('cc', 'Chuyên cần', function (wk) { return wk.recorded ? fmt(wk.cc) + ' (' + wk.present + '/' + wk.recorded + ')' : '–'; });
+    renderCriterion('ht', 'Học tập', function (wk) { return fmt(wk.ht); });
+    renderCriterion('kl', 'Kỷ luật', function (wk) { return fmt(wk.kl); });
+  }
+
+  function renderTong() {
+    var p = document.getElementById('panel-tong'); p.innerHTML = '';
+    if (!model.dates.length) {
+      p.appendChild(h('div', { class: 'empty', text: 'Chưa có tuần nào được điểm danh hay chấm điểm. Bảng xếp hạng sẽ xuất hiện sau Chúa Nhật đầu tiên.' }));
+      return;
+    }
+    var max = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season.total; })) || 1;
+    var list = h('div', { class: 'standings' });
+    model.ranking.forEach(function (doi, i) {
+      var t = model.teams[doi];
+      list.appendChild(h('div', { class: 'stand' + (i === 0 ? ' first' : ''), style: { '--team': t.color } }, [
+        h('div', { class: 'pos', text: String(i + 1) }),
+        h('div', { class: 'bar-wrap' }, [
+          h('div', { class: 'label' }, [
+            h('b', { text: t.name }),
+            h('span', { text: t.active.length + ' em · CC ' + fmt(t.season.cc) + ' · HT ' + fmt(t.season.ht) + ' · KL ' + fmt(t.season.kl) })
+          ]),
+          h('div', { class: 'bar' }, [h('i', { style: { width: (t.season.total / max * 100) + '%' } })])
+        ]),
+        h('div', { class: 'score', text: fmt(t.season.total, 1) }, [h('small', { text: 'TB ' + fmt(t.season.avg, 1) + '/tuần' })])
+      ]));
+    });
+    p.appendChild(list);
+
+    // Bảng tổng theo tuần
+    p.appendChild(h('h2', { text: 'Điểm tổng theo tuần', style: { fontSize: '18px', margin: '32px 0 10px' } }));
+    p.appendChild(weekTable(function (wk) { return wk.hasData ? fmt(wk.total, 2) : '–'; }, 'total'));
+  }
+
+  function renderCriterion(key, label, cell) {
+    var p = document.getElementById('panel-' + key); p.innerHTML = '';
+    if (!model.dates.length) { p.appendChild(h('div', { class: 'empty', text: 'Chưa có dữ liệu ' + label.toLowerCase() + '.' })); return; }
+    var order = N3.rankBy(model, key);
+    var tw = h('div', { class: 'table-wrap' });
+    var tbl = h('table');
+    tbl.appendChild(h('thead', null, [h('tr', null, [
+      h('th', { text: 'Hạng' }), h('th', { text: 'Đội' }),
+      h('th', { class: 'num', text: 'Điểm TB' }),
+      h('th', { class: 'num', text: 'Tổng ' + label.toLowerCase() }),
+      key === 'cc' ? h('th', { class: 'num', text: 'Có mặt / điểm danh' }) : null,
+      h('th', { class: 'num', text: 'Số tuần' })
+    ])]));
+    var tb = h('tbody');
+    order.forEach(function (doi, i) {
+      var t = model.teams[doi], se = t.season;
+      tb.appendChild(h('tr', null, [
+        h('td', { text: String(i + 1) }),
+        h('td', null, [h('span', { class: 'team-dot', style: { '--team': t.color } }), t.name]),
+        h('td', { class: 'num' + (i === 0 ? ' best' : ''), text: fmt(se[key]) }),
+        h('td', { class: 'num', text: fmt(se[key + 'Sum']) }),
+        key === 'cc' ? h('td', { class: 'num', text: se.recorded ? se.present + ' / ' + se.recorded + ' (' + se.rate + '%)' : '–' }) : null,
+        h('td', { class: 'num', text: String(se[key + 'Weeks'] !== undefined ? se[key + 'Weeks'] : se.weeks) })
+      ]));
+    });
+    tbl.appendChild(tb); tw.appendChild(tbl); p.appendChild(tw);
+
+    p.appendChild(h('h2', { text: label + ' theo tuần', style: { fontSize: '18px', margin: '28px 0 10px' } }));
+    p.appendChild(weekTable(cell, key));
+  }
+
+  /** Bảng: hàng = tuần, cột = đội */
+  function weekTable(cell, key) {
+    var doiList = Object.keys(model.teams).map(Number).sort();
+    var tw = h('div', { class: 'table-wrap' });
+    var tbl = h('table');
+    tbl.appendChild(h('thead', null, [h('tr', null, [h('th', { text: 'Chúa Nhật' })].concat(doiList.map(function (d) {
+      return h('th', { class: 'num' }, [h('span', { class: 'team-dot', style: { '--team': model.teams[d].color } }), model.teams[d].name]);
+    })))]));
+    var tb = h('tbody');
+    model.dates.slice().reverse().forEach(function (iso) {
+      var vals = doiList.map(function (d) { return model.teams[d].weekly[iso]; });
+      var best = Math.max.apply(null, vals.map(function (w) { var v = w[key]; return v === null || v === undefined ? -1 : v; }));
+      tb.appendChild(h('tr', null, [h('td', { text: N3.fmtVN(iso) })].concat(vals.map(function (w) {
+        var v = w[key]; var isBest = v !== null && v !== undefined && v === best && best > 0;
+        return h('td', { class: 'num' + (isBest ? ' best' : ''), text: cell(w) });
+      }))));
+    });
+    tbl.appendChild(tb); tw.appendChild(tbl);
+    return tw;
+  }
+
+  load();
+  setInterval(load, 5 * 60 * 1000); // tự làm mới mỗi 5 phút khi chiếu lên màn hình
+})();
+</script>
+</body>
+</html>

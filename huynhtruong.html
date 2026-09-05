@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Huynh Trưởng chấm điểm · Nghĩa 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="mast">
+    <div>
+      <p class="org">Lớp Nghĩa 3</p>
+      <h1>Huynh Trưởng chấm điểm</h1>
+      <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
+    </div>
+    <nav>
+      <a href="index.html">Bảng thi đua</a>
+      <a href="huynhtruong.html" aria-current="page">Huynh Trưởng</a>
+      <a href="doitruong.html">Đội trưởng</a>
+    </nav>
+  </header>
+
+  <div id="login" class="login" hidden>
+    <h2>Nhập PIN Huynh Trưởng</h2>
+    <p class="note">PIN được đặt trong sheet "CaiDat" của Google Sheet lớp.</p>
+    <div class="field"><label for="pin">PIN</label><input type="password" id="pin" inputmode="numeric" autocomplete="off"></div>
+    <button class="btn gold block" id="btnLogin">Vào chấm điểm</button>
+    <p class="error" id="loginErr" hidden></p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="tabs" role="tablist" id="tabs">
+      <button role="tab" aria-selected="true" data-tab="cham">Chấm điểm tuần</button>
+      <button role="tab" data-tab="cc">Chi tiết chuyên cần</button>
+    </div>
+
+    <section class="panel" id="panel-cham">
+      <div class="toolbar">
+        <div class="field"><label for="week">Chúa Nhật</label><select id="week"></select></div>
+        <div class="grow"></div>
+        <button class="btn ghost" id="btnReload">Tải lại</button>
+        <button class="btn ghost" id="btnLogout">Đăng xuất</button>
+      </div>
+      <div class="score-grid" id="cards"></div>
+      <div class="sticky-bar">
+        <button class="btn gold block" id="btnSave">Lưu điểm tuần này</button>
+      </div>
+      <p class="note">Chuyên cần được tính tự động từ điểm danh của Đội trưởng. Nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
+    </section>
+
+    <section class="panel" id="panel-cc" hidden>
+      <div class="toolbar">
+        <div class="field"><label for="team">Đội</label><select id="team"></select></div>
+      </div>
+      <div id="ccDetail"></div>
+    </section>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  var h = N3.h, fmt = N3.fmt;
+  var raw = null, model = null;
+
+  /* ---- login ---- */
+  function showLogin(msg) {
+    document.getElementById('app').hidden = true;
+    document.getElementById('login').hidden = false;
+    var e = document.getElementById('loginErr'); e.hidden = !msg; e.textContent = msg || '';
+  }
+  function tryLogin(pin) {
+    N3.setBusy(true);
+    return N3.apiPost({ action: 'verify', pin: pin }).then(function (res) {
+      if (res.role.role !== 'ht') throw new Error('PIN này là của Đội trưởng, không chấm điểm được.');
+      N3.savePin(pin);
+      document.getElementById('login').hidden = true;
+      document.getElementById('app').hidden = false;
+      return load();
+    }).catch(function (err) { showLogin(err.message); }).finally(function () { N3.setBusy(false); });
+  }
+  document.getElementById('btnLogin').onclick = function () { tryLogin(document.getElementById('pin').value.trim()); };
+  document.getElementById('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
+  document.getElementById('btnLogout').onclick = function () { N3.clearPin(); location.reload(); };
+  document.getElementById('btnReload').onclick = load;
+
+  /* ---- tabs ---- */
+  document.getElementById('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-tab]'); if (!b) return;
+    document.querySelectorAll('#tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
+    document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== 'panel-' + b.dataset.tab; });
+  });
+
+  /* ---- data ---- */
+  function load() {
+    N3.setBusy(true);
+    return N3.apiGet('data').then(function (res) {
+      raw = res.data; model = N3.compute(raw);
+      document.getElementById('theme').textContent = raw.settings.chuDe || '';
+      fillWeeks(); fillTeams(); renderCards(); renderCC();
+    }).catch(function (err) { N3.toast('Không tải được dữ liệu: ' + err.message, 'err'); })
+      .finally(function () { N3.setBusy(false); });
+  }
+
+  function fillWeeks() {
+    var sel = document.getElementById('week'); var cur = sel.value;
+    sel.innerHTML = '';
+    var list = N3.sundays(raw.settings.ngayBatDau);
+    model.dates.forEach(function (d) { if (list.indexOf(d) === -1) list.push(d); });
+    list.sort().reverse().forEach(function (iso) {
+      var has = model.dates.indexOf(iso) > -1;
+      sel.appendChild(h('option', { value: iso, text: N3.fmtVN(iso) + (has ? ' ✓' : '') }));
+    });
+    sel.value = cur && list.indexOf(cur) > -1 ? cur : N3.latestSunday();
+    if (!sel.value) sel.selectedIndex = 0;
+  }
+  document.getElementById('week').onchange = renderCards;
+
+  function fillTeams() {
+    var sel = document.getElementById('team'); var cur = sel.value;
+    sel.innerHTML = '';
+    Object.keys(model.teams).map(Number).sort().forEach(function (d) {
+      sel.appendChild(h('option', { value: d, text: model.teams[d].name }));
+    });
+    if (cur) sel.value = cur;
+  }
+  document.getElementById('team').onchange = renderCC;
+
+  /* ---- chấm điểm ---- */
+  function renderCards() {
+    var iso = document.getElementById('week').value;
+    var box = document.getElementById('cards'); box.innerHTML = '';
+    Object.keys(model.teams).map(Number).sort().forEach(function (d) {
+      var t = model.teams[d]; var wk = t.weekly[iso] || {};
+      box.appendChild(h('div', { class: 'score-card', style: { '--team': t.color }, 'data-doi': d }, [
+        h('h3', { text: t.name }),
+        h('div', { class: 'cc', html: wk.recorded
+          ? 'Chuyên cần <b>' + fmt(wk.cc) + '</b> · có mặt ' + wk.present + '/' + wk.recorded
+          : 'Chuyên cần <b>–</b> · chưa điểm danh' }),
+        h('div', { class: 'inputs' }, [
+          h('div', { class: 'field' }, [h('label', { text: 'Học tập (0–10)' }), h('input', { type: 'number', min: 0, max: 10, step: 0.5, 'data-k': 'ht', value: wk.ht === null || wk.ht === undefined ? '' : wk.ht, inputmode: 'decimal' })]),
+          h('div', { class: 'field' }, [h('label', { text: 'Kỷ luật (0–10)' }), h('input', { type: 'number', min: 0, max: 10, step: 0.5, 'data-k': 'kl', value: wk.kl === null || wk.kl === undefined ? '' : wk.kl, inputmode: 'decimal' })])
+        ]),
+        h('div', { class: 'field' }, [h('label', { text: 'Ghi chú' }), h('input', { type: 'text', 'data-k': 'note', value: wk.ghiChu || '', placeholder: 'Lý do cộng/trừ điểm…' })])
+      ]));
+    });
+  }
+
+  document.getElementById('btnSave').onclick = function () {
+    var iso = document.getElementById('week').value;
+    var scores = [];
+    document.querySelectorAll('.score-card').forEach(function (card) {
+      var v = function (k) { return card.querySelector('[data-k=' + k + ']').value; };
+      scores.push({ doi: Number(card.dataset.doi), hocTap: v('ht') === '' ? null : Number(v('ht')), kyLuat: v('kl') === '' ? null : Number(v('kl')), ghiChu: v('note') });
+    });
+    var bad = scores.some(function (s) { return [s.hocTap, s.kyLuat].some(function (x) { return x !== null && (isNaN(x) || x < 0 || x > 10); }); });
+    if (bad) { N3.toast('Điểm phải nằm trong khoảng 0–10', 'err'); return; }
+    N3.setBusy(true);
+    N3.apiPost({ action: 'saveScores', pin: N3.savedPin(), ngay: iso, scores: scores }).then(function (res) {
+      raw = res.data; model = N3.compute(raw);
+      fillWeeks(); renderCards(); renderCC();
+      N3.toast('Đã lưu điểm ' + N3.fmtVN(iso), 'ok');
+    }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
+      .finally(function () { N3.setBusy(false); });
+  };
+
+  /* ---- chi tiết chuyên cần ---- */
+  function renderCC() {
+    var d = Number(document.getElementById('team').value);
+    var t = model.teams[d]; var box = document.getElementById('ccDetail'); box.innerHTML = '';
+    if (!t) return;
+    var dates = model.dates.filter(function (iso) { return t.weekly[iso].recorded; });
+    if (!dates.length) { box.appendChild(h('div', { class: 'empty', text: t.name + ' chưa có buổi điểm danh nào.' })); return; }
+
+    box.appendChild(h('p', { class: 'note', text: 'Tổng: có mặt ' + t.season.present + '/' + t.season.recorded + ' lượt (' + t.season.rate + '%) qua ' + dates.length + ' buổi. Đội có ' + t.active.length + ' em đang sinh hoạt.' }));
+
+    // ma trận em × ngày
+    var tw = h('div', { class: 'table-wrap' }); var tbl = h('table');
+    tbl.appendChild(h('thead', null, [h('tr', null, [h('th', { text: 'Thiếu nhi' })].concat(dates.map(function (iso) { return h('th', { class: 'num', text: N3.fmtShort(iso) }); })).concat([h('th', { class: 'num', text: 'Có mặt' })]))]));
+    var tb = h('tbody');
+    var byKey = {};
+    dates.forEach(function (iso) { t.weekly[iso].attendance.forEach(function (a) { byKey[a.id + '|' + iso] = a; }); });
+    t.active.forEach(function (m) {
+      var count = 0, cells = dates.map(function (iso) {
+        var a = byKey[m.id + '|' + iso];
+        if (!a) return h('td', { class: 'num', text: '·', style: { color: 'var(--muted)' } });
+        if (a.coMat) count++;
+        return h('td', { class: 'num', text: a.coMat ? '✓' : '✗', title: a.ghiChu || '', style: { color: a.coMat ? 'var(--ok)' : 'var(--no)', fontWeight: 700 } });
+      });
+      tb.appendChild(h('tr', null, [h('td', null, [m.tenThanh + ' ' + m.hoTen, m.role ? h('small', { text: ' · ' + m.role, style: { color: 'var(--muted)' } }) : null])].concat(cells).concat([h('td', { class: 'num', text: count + '/' + dates.length })])));
+    });
+    // dòng tổng
+    tb.appendChild(h('tr', null, [h('td', { text: 'Có mặt / điểm danh', style: { fontWeight: 700 } })].concat(dates.map(function (iso) {
+      var w = t.weekly[iso]; return h('td', { class: 'num', text: w.present + '/' + w.recorded, style: { fontWeight: 700 } });
+    })).concat([h('td')])));
+    tbl.appendChild(tb); tw.appendChild(tbl); box.appendChild(tw);
+  }
+
+  /* ---- boot ---- */
+  var pin = N3.savedPin();
+  if (pin) tryLogin(pin); else showLogin();
+})();
+</script>
+</body>
+</html>
