@@ -26,7 +26,7 @@
   function withTimeout(p, ms) {
     return new Promise(function (resolve, reject) {
       var done = false;
-      var t = setTimeout(function () { if (!done) { done = true; reject(new Error('Máy chủ không phản hồi sau ' + (ms / 1000) + ' giây. Kiểm tra mạng rồi bấm Tải lại.')); } }, ms);
+      var t = setTimeout(function () { if (!done) { done = true; reject(new Error('Máy chủ không phản hồi sau ' + (ms / 1000) + ' giây. Kiểm tra mạng rồi thử lại — đừng bấm nhiều lần liên tiếp.')); } }, ms);
       p.then(function (v) { if (!done) { done = true; clearTimeout(t); resolve(v); } },
              function (e) { if (!done) { done = true; clearTimeout(t); reject(e); } });
     });
@@ -37,7 +37,7 @@
     if (!url) return Promise.reject(new Error('Chưa cấu hình URL API'));
     return withTimeout(fetch(url + '?action=' + action + '&t=' + Date.now(), { redirect: 'follow' })
       .then(function (r) { return r.json(); })
-      .then(unwrap), 30000);
+      .then(unwrap), 45000);
   }
 
   function apiPost(payload) {
@@ -46,7 +46,7 @@
     // Không đặt Content-Type để tránh CORS preflight (Apps Script không hỗ trợ OPTIONS)
     return withTimeout(fetch(url, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' })
       .then(function (r) { return r.json(); })
-      .then(unwrap), 30000);
+      .then(unwrap), 45000);
   }
 
   function unwrap(res) {

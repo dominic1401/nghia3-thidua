@@ -169,6 +169,8 @@
   }
 
   document.getElementById('btnSave').onclick = function () {
+    var btn = this;
+    if (btn.dataset.saving === '1') return;   // chặn bấm liên tiếp
     var iso = document.getElementById('week').value;
     var scores = [];
     document.querySelectorAll('.score-card').forEach(function (card) {
@@ -177,13 +179,14 @@
     });
     var bad = scores.some(function (s) { return [s.hocTap, s.kyLuat].some(function (x) { return x !== null && (isNaN(x) || x < 0 || x > 10); }); });
     if (bad) { N3.toast('Điểm phải nằm trong khoảng 0–10', 'err'); return; }
+    btn.dataset.saving = '1'; btn.textContent = 'Đang lưu…';
     N3.setBusy(true);
     N3.apiPost({ action: 'saveScores', pin: N3.savedPin(), ngay: iso, scores: scores }).then(function (res) {
       raw = res.data; model = N3.compute(raw);
       fillWeeks(); renderCards(); renderCC();
       N3.toast('Đã lưu điểm ' + N3.fmtVN(iso), 'ok');
     }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
-      .finally(function () { N3.setBusy(false); });
+      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu điểm tuần này'; N3.setBusy(false); });
   };
 
   /* ---- chi tiết chuyên cần ---- */

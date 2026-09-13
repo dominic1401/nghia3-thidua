@@ -183,18 +183,21 @@
   };
 
   document.getElementById('btnSave').onclick = function () {
+    var btn = this;
+    if (btn.dataset.saving === '1') return;   // chặn bấm liên tiếp
     var ids = Object.keys(state);
     var unset = ids.filter(function (i) { return state[i].coMat === null; });
     if (unset.length && !confirm('Còn ' + unset.length + ' em chưa chọn, sẽ tính là vắng. Lưu luôn?')) return;
     var iso = document.getElementById('week').value, d = currentTeam();
     var records = ids.map(function (i) { return { id: i, hoTen: state[i].hoTen, coMat: state[i].coMat === true, ghiChu: state[i].ghiChu || '' }; });
+    btn.dataset.saving = '1'; btn.textContent = 'Đang lưu…';
     N3.setBusy(true);
     N3.apiPost({ action: 'saveAttendance', pin: N3.savedPin(), doi: d, ngay: iso, records: records }).then(function (res) {
       raw = res.data; model = N3.compute(raw);
       renderList();
       N3.toast('Đã lưu điểm danh ' + N3.fmtVN(iso), 'ok');
     }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
-      .finally(function () { N3.setBusy(false); });
+      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu điểm danh'; N3.setBusy(false); });
   };
 
   var pin = N3.savedPin();
