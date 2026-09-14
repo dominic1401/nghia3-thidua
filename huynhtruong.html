@@ -42,11 +42,19 @@
       </div>
       <p class="wknote" id="wkNote"></p>
       <div class="score-grid" id="cards"></div>
+
+      <h2 class="sec">📝 Nhật ký tuần này</h2>
+      <div class="log" id="log"></div>
+
       <div class="sticky-bar">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><span id="barRight" style="display:flex"></span></div>
-        <button class="btn gold block" id="btnSave">Lưu điểm tuần này</button>
+        <div class="pending" style="margin-bottom:10px">
+          <span class="count" id="pendingText">Chưa có thay đổi</span>
+          <span class="grow" style="flex:1"></span>
+          <span id="barRight" style="display:flex"></span>
+        </div>
+        <button class="btn gold block" id="btnSave">Lưu thay đổi</button>
       </div>
-      <p class="note">Chuyên cần được tính tự động từ điểm danh của Đội trưởng. Nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
+      <p class="note">Mỗi lần bấm là 1 điểm. Hai tiêu chí bắt đầu ở <b>5</b> mỗi tuần, cộng trừ trong khoảng 0–10. Chuyên cần vẫn tự động tính từ điểm danh của Đội trưởng; nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
     </section>
 
     <section class="panel" id="panel-cc" hidden>
@@ -102,7 +110,7 @@
     return N3.apiGet('data').then(function (res) {
       raw = res.data; model = N3.compute(raw);
       document.getElementById('theme').textContent = raw.settings.chuDe || '';
-      fillWeeks(); fillTeams(); renderCards(); renderCC();
+      fillWeeks(); fillTeams(); renderCards(); renderLog(); renderCC();
     }).catch(function (err) { N3.toast('Không tải được dữ liệu: ' + err.message, 'err'); })
       .finally(function () { N3.setBusy(false); });
   }
@@ -120,7 +128,7 @@
     sel.value = cur && list.indexOf(cur) > -1 ? cur : today;
     if (!sel.value) sel.selectedIndex = 0;
     if (!syncStepper) {
-      syncStepper = N3.wireWeekStepper(sel, document.getElementById('wkPrev'), document.getElementById('wkNext'), renderCards);
+      syncStepper = N3.wireWeekStepper(sel, document.getElementById('wkPrev'), document.getElementById('wkNext'), function () { renderCards(); renderLog(); });
     }
     syncStepper();
   }
@@ -148,6 +156,60 @@
     else el.textContent = 'Chúa Nhật đã qua';
   }
 
+  /* ---- chấm điểm bằng nút cộng/trừ ---- */
+  // pending = các lần bấm chưa gửi lên máy chủ, giữ ở máy để bấm nhanh không bị chờ mạng
+  var pending = [];
+  var BASE = 5;
+
+  function netOf(iso, doi, key) {
+    var t = model.teams[doi], wk = t.weekly[iso] || {};
+    var saved = key === 'ht' ? wk.netHt : wk.netKl;
+    var n = (saved === null || saved === undefined) ? null : saved;
+    var local = 0, hasLocal = false;
+    pending.forEach(function (e) {
+      if (e.ngay === iso && e.doi === doi && e.tieuChi === key) { local += e.diem; hasLocal = true; }
+    });
+    if (n === null && !hasLocal) return null;
+    return (n || 0) + local;
+  }
+
+  /** Điểm hiển thị: mốc 5 + tổng các lần bấm, kẹp 0..10. Chưa bấm gì thì lấy điểm cũ nếu có. */
+  function scoreOf(iso, doi, key) {
+    var net = netOf(iso, doi, key);
+    if (net !== null) return Math.max(0, Math.min(10, BASE + net));
+    var wk = model.teams[doi].weekly[iso] || {};
+    var old = key === 'ht' ? wk.ht : wk.kl;
+    return (old === null || old === undefined) ? BASE : old;
+  }
+
+  function tap(iso, doi, key, diem) {
+    var cur = scoreOf(iso, doi, key);
+    if (diem > 0 && cur >= 10) { N3.toast('Đã đạt tối đa 10 điểm', 'err'); return; }
+    if (diem < 0 && cur <= 0) { N3.toast('Đã ở mức thấp nhất 0 điểm', 'err'); return; }
+    pending.push({ ngay: iso, doi: doi, tieuChi: key, diem: diem });
+    if (navigator.vibrate) navigator.vibrate(10);
+    renderCards(); renderLog();
+  }
+
+  function tallyRow(iso, doi, key, label) {
+    var val = h('div', { class: 'val' });
+    var score = scoreOf(iso, doi, key);
+    var net = netOf(iso, doi, key);
+    val.appendChild(h('b', { class: score >= 10 ? 'max' : (score <= 0 ? 'min' : ''), text: fmt(score, 0) }));
+    val.appendChild(h('span', {
+      class: net > 0 ? 'up' : (net < 0 ? 'down' : ''),
+      text: net === null ? 'chưa bấm' : (net > 0 ? '+' + net : String(net))
+    }));
+    return h('div', { class: 'tally' }, [
+      h('div', { class: 'lab', text: label }),
+      h('div', { class: 'ctl' }, [
+        h('button', { class: 'minus', type: 'button', 'aria-label': 'Trừ 1 điểm ' + label, text: '−', onclick: function () { tap(iso, doi, key, -1); } }),
+        val,
+        h('button', { class: 'plus', type: 'button', 'aria-label': 'Cộng 1 điểm ' + label, text: '+', onclick: function () { tap(iso, doi, key, 1); } })
+      ])
+    ]);
+  }
+
   function renderCards() {
     updateWeekNote();
     var iso = document.getElementById('week').value;
@@ -159,34 +221,94 @@
         h('div', { class: 'cc', html: wk.recorded
           ? 'Chuyên cần <b>' + fmt(wk.cc) + '</b> · có mặt ' + wk.present + '/' + wk.recorded
           : 'Chuyên cần <b>–</b> · chưa điểm danh' }),
-        h('div', { class: 'inputs' }, [
-          h('div', { class: 'field' }, [h('label', { text: 'Học tập (0–10)' }), h('input', { type: 'number', min: 0, max: 10, step: 0.5, 'data-k': 'ht', value: wk.ht === null || wk.ht === undefined ? '' : wk.ht, inputmode: 'decimal' })]),
-          h('div', { class: 'field' }, [h('label', { text: 'Kỷ luật (0–10)' }), h('input', { type: 'number', min: 0, max: 10, step: 0.5, 'data-k': 'kl', value: wk.kl === null || wk.kl === undefined ? '' : wk.kl, inputmode: 'decimal' })])
+        tallyRow(iso, d, 'ht', 'Học tập'),
+        tallyRow(iso, d, 'kl', 'Kỷ luật')
+      ]));
+    });
+    updatePending();
+  }
+
+  function updatePending() {
+    var iso = document.getElementById('week').value;
+    var n = pending.filter(function (e) { return e.ngay === iso; }).length;
+    var el = document.getElementById('pendingText');
+    el.textContent = n ? n + ' lần bấm chưa lưu' : 'Đã lưu, không có thay đổi mới';
+    document.getElementById('btnSave').disabled = !n;
+  }
+
+  /** Nhật ký: các lần bấm đã lưu trên máy chủ + các lần đang chờ lưu */
+  function renderLog() {
+    var iso = document.getElementById('week').value;
+    var box = document.getElementById('log'); box.innerHTML = '';
+    var saved = (raw.events || []).filter(function (e) { return e.ngay === iso; });
+    var items = saved.map(function (e) {
+      return { doi: e.doi, tieuChi: e.tieuChi, diem: e.diem, thoiGian: e.thoiGian, cho: false };
+    }).concat(pending.filter(function (e) { return e.ngay === iso; }).map(function (e) {
+      return { doi: e.doi, tieuChi: e.tieuChi, diem: e.diem, thoiGian: '', cho: true };
+    }));
+
+    if (!items.length) {
+      box.appendChild(h('div', { class: 'empty', text: 'Chưa có lần cộng/trừ nào trong tuần này.' }));
+      return;
+    }
+    items.reverse().forEach(function (e) {
+      var gio = '';
+      if (e.thoiGian) { try { gio = new Date(e.thoiGian).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }); } catch (x) { gio = ''; } }
+      box.appendChild(h('div', { class: 'log-row' }, [
+        h('span', { class: 'd ' + (e.diem > 0 ? 'up' : 'down'), text: e.diem > 0 ? '+1' : '−1' }),
+        h('span', null, [
+          (model.teams[e.doi] ? model.teams[e.doi].name : 'Đội ' + e.doi) + ' · ' + (e.tieuChi === 'ht' ? 'Học tập' : 'Kỷ luật'),
+          h('span', { class: 't', text: e.cho ? ' · chưa lưu' : (gio ? ' · ' + gio : '') })
         ]),
-        h('div', { class: 'field' }, [h('label', { text: 'Ghi chú' }), h('input', { type: 'text', 'data-k': 'note', value: wk.ghiChu || '', placeholder: 'Lý do cộng/trừ điểm…' })])
+        h('button', {
+          class: 'undo', type: 'button', 'aria-label': 'Hoàn tác lần bấm này', text: '✕',
+          onclick: function () { undo(e); }
+        })
       ]));
     });
   }
 
+  /**
+   * Hoàn tác một lần bấm. Các lần bấm cùng đội + cùng tiêu chí là giống hệt nhau
+   * (đều 1 điểm), nên bỏ lần nào cũng cho kết quả như nhau.
+   */
+  function undo(e) {
+    var iso = document.getElementById('week').value;
+    if (e.cho) {
+      for (var i = pending.length - 1; i >= 0; i--) {
+        if (pending[i].ngay === iso && pending[i].doi === e.doi && pending[i].tieuChi === e.tieuChi) {
+          pending.splice(i, 1); break;
+        }
+      }
+      renderCards(); renderLog();
+      return;
+    }
+    N3.setBusy(true);
+    N3.apiPost({ action: 'undoEvent', pin: N3.savedPin(), ngay: iso, doi: e.doi, tieuChi: e.tieuChi })
+      .then(function (res) {
+        raw = res.data; model = N3.compute(raw);
+        renderCards(); renderLog(); renderCC();
+        N3.toast('Đã hoàn tác', 'ok');
+      })
+      .catch(function (err) { N3.toast(err.message, 'err'); })
+      .finally(function () { N3.setBusy(false); });
+  }
+
   document.getElementById('btnSave').onclick = function () {
     var btn = this;
-    if (btn.dataset.saving === '1') return;   // chặn bấm liên tiếp
+    if (btn.dataset.saving === '1') return;
     var iso = document.getElementById('week').value;
-    var scores = [];
-    document.querySelectorAll('.score-card').forEach(function (card) {
-      var v = function (k) { return card.querySelector('[data-k=' + k + ']').value; };
-      scores.push({ doi: Number(card.dataset.doi), hocTap: v('ht') === '' ? null : Number(v('ht')), kyLuat: v('kl') === '' ? null : Number(v('kl')), ghiChu: v('note') });
-    });
-    var bad = scores.some(function (s) { return [s.hocTap, s.kyLuat].some(function (x) { return x !== null && (isNaN(x) || x < 0 || x > 10); }); });
-    if (bad) { N3.toast('Điểm phải nằm trong khoảng 0–10', 'err'); return; }
+    var batch = pending.filter(function (e) { return e.ngay === iso; });
+    if (!batch.length) { N3.toast('Chưa có thay đổi nào để lưu'); return; }
     btn.dataset.saving = '1'; btn.textContent = 'Đang lưu…';
     N3.setBusy(true);
-    N3.apiPost({ action: 'saveScores', pin: N3.savedPin(), ngay: iso, scores: scores }).then(function (res) {
+    N3.apiPost({ action: 'addEvents', pin: N3.savedPin(), ngay: iso, events: batch }).then(function (res) {
       raw = res.data; model = N3.compute(raw);
-      fillWeeks(); renderCards(); renderCC();
-      N3.toast('Đã lưu điểm ' + N3.fmtVN(iso), 'ok');
+      pending = pending.filter(function (e) { return e.ngay !== iso; });
+      fillWeeks(); renderCards(); renderLog(); renderCC();
+      N3.toast('Đã lưu ' + batch.length + ' lần bấm', 'ok');
     }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
-      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu điểm tuần này'; N3.setBusy(false); });
+      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu thay đổi'; N3.setBusy(false); });
   };
 
   /* ---- chi tiết chuyên cần ---- */

@@ -137,6 +137,35 @@
       scoreByKey[s.ngay + '|' + s.doi] = s;
       if (s.hocTap !== null || s.kyLuat !== null) dateSet[s.ngay] = 1;
     });
+
+    // Sự kiện cộng/trừ: gom theo ngày|đội|tiêu chí
+    var base = (data.diemGoc === undefined || data.diemGoc === null) ? 5 : Number(data.diemGoc);
+    var evByKey = {}, weekHasEvent = {};
+    (data.events || []).forEach(function (e) {
+      if (!teams[e.doi]) return;
+      var k = e.ngay + '|' + e.doi + '|' + e.tieuChi;
+      evByKey[k] = (evByKey[k] || 0) + Number(e.diem);
+      weekHasEvent[e.ngay] = 1;
+      dateSet[e.ngay] = 1;
+    });
+
+    /**
+     * Điểm một tiêu chí trong tuần:
+     *  - có lần bấm cộng/trừ  -> mốc gốc + tổng các lần bấm, kẹp 0..10
+     *  - không có, nhưng tuần đó đã chấm tay trước đây -> giữ nguyên điểm cũ
+     *  - tuần có chấm mà đội này chưa được bấm gì -> coi như trung tính (mốc gốc)
+     */
+    function critScore(iso, doi, key) {
+      var k = iso + '|' + doi + '|' + key;
+      if (evByKey[k] !== undefined) {
+        return Math.max(0, Math.min(10, base + evByKey[k]));
+      }
+      var sc = scoreByKey[iso + '|' + doi];
+      var manual = sc ? (key === 'ht' ? sc.hocTap : sc.kyLuat) : null;
+      if (manual !== null && manual !== undefined) return manual;
+      return weekHasEvent[iso] ? base : null;
+    }
+
     var dates = Object.keys(dateSet).sort();
 
     Object.keys(teams).forEach(function (doi) {
@@ -147,11 +176,18 @@
         var sc = scoreByKey[iso + '|' + doi] || {};
         var present = att.filter(function (a) { return a.coMat; }).length;
         var cc = att.length ? Math.round((present / att.length) * 100) / 10 : null;
-        var ht = (sc.hocTap === undefined || sc.hocTap === null) ? null : sc.hocTap;
-        var kl = (sc.kyLuat === undefined || sc.kyLuat === null) ? null : sc.kyLuat;
+        var ht = critScore(iso, doi, 'ht');
+        var kl = critScore(iso, doi, 'kl');
+        var netHt = evByKey[iso + '|' + doi + '|ht'];
+        var netKl = evByKey[iso + '|' + doi + '|kl'];
         var total = Math.round(((w.cc * (cc || 0)) + (w.ht * (ht || 0)) + (w.kl * (kl || 0))) / 100 * 100) / 100;
         var has = cc !== null || ht !== null || kl !== null;
-        t.weekly[iso] = { cc: cc, ht: ht, kl: kl, total: total, present: present, recorded: att.length, hasData: has, ghiChu: sc.ghiChu || '', attendance: att };
+        t.weekly[iso] = {
+          cc: cc, ht: ht, kl: kl, total: total, present: present, recorded: att.length,
+          hasData: has, ghiChu: sc.ghiChu || '', attendance: att,
+          netHt: netHt === undefined ? null : netHt,
+          netKl: netKl === undefined ? null : netKl
+        };
         if (has) {
           sum.total += total; sum.weeks++;
           if (cc !== null) { sum.cc += cc; sum.ccWeeks++; }

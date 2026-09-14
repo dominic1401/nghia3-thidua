@@ -186,12 +186,41 @@ td.best { font-weight: 800; color: var(--gold-deep); }
 .summary-pill { display: inline-flex; gap: 10px; align-items: center; background: var(--gold-soft); color: var(--gold-deep); font-weight: 700; padding: 8px 14px; border-radius: 999px; }
 
 /* Scoring grid (Huynh Trưởng) */
-.score-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.score-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .score-card { background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--team); border-radius: 12px; padding: 14px; display: grid; gap: 10px; }
 .score-card h3 { margin: 0; font-size: 18px; }
 .score-card .cc { font-size: 14px; color: var(--ink-2); }
 .score-card .cc b { color: var(--ink); font-size: 18px; }
-.score-card .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Hàng cộng/trừ */
+.tally { display: grid; grid-template-columns: 76px 1fr; gap: 10px; align-items: center; }
+.tally .lab { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.tally .ctl { display: grid; grid-template-columns: 56px 1fr 56px; gap: 8px; align-items: stretch; }
+.tally button {
+  border: 1px solid var(--line); background: #fff; border-radius: 12px; cursor: pointer;
+  font-size: 26px; font-weight: 700; line-height: 1; padding: 12px 0; color: var(--ink);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.tally button.minus { color: var(--no); }
+.tally button.plus { color: var(--ok); }
+.tally button:active { transform: scale(.94); background: var(--paper-2); }
+.tally .val { text-align: center; align-self: center; }
+.tally .val b { font-size: 26px; font-weight: 800; letter-spacing: -.02em; display: block; line-height: 1.1; }
+.tally .val span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.tally .val span.up { color: var(--ok); }
+.tally .val span.down { color: var(--no); }
+.tally .val b.max { color: var(--gold-deep); }
+.tally .val b.min { color: var(--no); }
+
+.pending { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pending .count { font-weight: 700; color: var(--gold-deep); }
+.log { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+.log-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; font-size: 14px; padding: 8px 10px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.log-row .d { font-weight: 800; width: 26px; text-align: center; }
+.log-row .d.up { color: var(--ok); } .log-row .d.down { color: var(--no); }
+.log-row .t { color: var(--muted); font-size: 12px; }
+.log-row .undo { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 8px; }
+.log-row .undo:hover, .log-row .undo:active { background: var(--no-soft); color: var(--no); }
 
 /* Toast */
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 10px; font-weight: 600; transition: .25s; pointer-events: none; z-index: 50; max-width: 90vw; }
