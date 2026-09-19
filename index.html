@@ -26,12 +26,14 @@
     <button role="tab" data-tab="cc">🔥 Chuyên cần</button>
     <button role="tab" data-tab="ht">📖 Học tập</button>
     <button role="tab" data-tab="kl">🛡️ Kỷ luật</button>
+    <button role="tab" data-tab="bai">📖 Bài học</button>
   </div>
 
   <section class="panel" id="panel-tong"></section>
   <section class="panel" id="panel-cc" hidden></section>
   <section class="panel" id="panel-ht" hidden></section>
   <section class="panel" id="panel-kl" hidden></section>
+  <section class="panel" id="panel-bai" hidden></section>
 
   <p class="note" id="rule" style="margin-top:28px"></p>
   <p class="updated" id="updated"></p>
@@ -49,6 +51,8 @@
     var b = e.target.closest('button[data-tab]'); if (!b) return;
     document.querySelectorAll('#tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
     document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== 'panel-' + b.dataset.tab; });
+    // công thức tính điểm không liên quan tới tab Bài học
+    document.getElementById('rule').hidden = b.dataset.tab === 'bai';
   });
 
   function load() {
@@ -78,6 +82,7 @@
     renderCriterion('cc', 'Chuyên cần', function (wk) { return wk.recorded ? fmt(wk.cc) + ' (' + wk.present + '/' + wk.recorded + ')' : '–'; });
     renderCriterion('ht', 'Học tập', function (wk) { return fmt(wk.ht); });
     renderCriterion('kl', 'Kỷ luật', function (wk) { return fmt(wk.kl); });
+    renderLessons();
   }
 
   /** Xếp hạng lũy kế tính đến trước tuần mới nhất, để biết đội lên/xuống mấy bậc */
@@ -205,6 +210,47 @@
 
     p.appendChild(h('h2', { class: 'sec' }, ['📅 Điểm tổng theo tuần']));
     p.appendChild(weekTable(function (wk) { return wk.hasData ? fmt(wk.total, 2) : '–'; }, 'total'));
+  }
+
+
+  /** Sổ tay bài học để các em ôn lại trong tuần */
+  function renderLessons() {
+    var p = document.getElementById('panel-bai'); p.innerHTML = '';
+    var list = (raw.lessons || []).filter(function (l) { return l.tenBai; })
+                 .sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; });
+    if (!list.length) {
+      p.appendChild(h('div', { class: 'empty', text: 'Chưa có bài học nào được đăng. Huynh Trưởng sẽ soạn sau mỗi buổi học.' }));
+      return;
+    }
+    list.forEach(function (l, i) {
+      var body = h('div', { class: 'lesson-body' });
+      if (l.loiChua) {
+        body.appendChild(h('blockquote', { class: 'loichua' }, [
+          l.loiChua,
+          l.trichDan ? h('cite', { text: l.trichDan }) : null
+        ]));
+      }
+      if (l.yChinh && l.yChinh.length) {
+        body.appendChild(h('h4', { text: 'Ý chính cần nhớ' }));
+        var ul = h('ul', { class: 'ychinh' });
+        l.yChinh.forEach(function (y) { ul.appendChild(h('li', { text: y })); });
+        body.appendChild(ul);
+      }
+      if (l.cauHoi) {
+        body.appendChild(h('div', { class: 'suyniem' }, [
+          h('b', { text: 'Suy niệm  ' }), l.cauHoi
+        ]));
+      }
+      var det = h('details', { class: 'lesson' }, [
+        h('summary', null, [
+          h('span', { class: 'ngay', text: N3.fmtVN(l.ngay) }),
+          h('span', { class: 'ten', text: l.tenBai })
+        ]),
+        body
+      ]);
+      if (i === 0) det.open = true;   // bài mới nhất mở sẵn
+      p.appendChild(det);
+    });
   }
 
   function renderCriterion(key, label, cell) {

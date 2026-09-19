@@ -30,8 +30,9 @@
 
   <div id="app" hidden>
     <div class="tabs" role="tablist" id="tabs">
-      <button role="tab" aria-selected="true" data-tab="cham">Chấm điểm tuần</button>
-      <button role="tab" data-tab="cc">Chi tiết chuyên cần</button>
+      <button role="tab" aria-selected="true" data-tab="cham">⚖️ Chấm điểm</button>
+      <button role="tab" data-tab="cc">🔥 Chuyên cần</button>
+      <button role="tab" data-tab="bai">📖 Soạn bài học</button>
     </div>
 
     <section class="panel" id="panel-cham">
@@ -55,6 +56,43 @@
         <button class="btn gold block" id="btnSave">Lưu thay đổi</button>
       </div>
       <p class="note">Mỗi lần bấm là 1 điểm. Hai tiêu chí bắt đầu ở <b>5</b> mỗi tuần, cộng trừ trong khoảng 0–10. Chuyên cần vẫn tự động tính từ điểm danh của Đội trưởng; nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
+    </section>
+
+    <section class="panel" id="panel-bai" hidden>
+      <div class="weekbar">
+        <button class="step" type="button" id="bPrev" aria-label="Chúa Nhật trước">‹</button>
+        <select id="bWeek" aria-label="Chọn Chúa Nhật"></select>
+        <button class="step" type="button" id="bNext" aria-label="Chúa Nhật sau">›</button>
+      </div>
+      <p class="wknote" id="bNote"></p>
+
+      <div class="card" style="display:grid;gap:14px">
+        <div class="field">
+          <label for="bTen">Tên bài học</label>
+          <input type="text" id="bTen" placeholder="VD: Bài 1 — Thiên Chúa gọi tôi">
+        </div>
+        <div class="field">
+          <label for="bLoi">Lời Chúa</label>
+          <textarea id="bLoi" rows="3" placeholder="Chép câu Lời Chúa của bài…"></textarea>
+        </div>
+        <div class="field">
+          <label for="bTrich">Trích dẫn</label>
+          <input type="text" id="bTrich" placeholder="VD: Mt 4, 18-22">
+        </div>
+        <div class="field">
+          <label for="bY">Ý chính cần nhớ — mỗi ý một dòng</label>
+          <textarea id="bY" rows="6" placeholder="Chúa gọi từng người một cách riêng&#10;Đáp lại lời mời gọi là bỏ lại điều mình quen thuộc&#10;Người môn đệ được sai đi loan báo"></textarea>
+        </div>
+        <div class="field">
+          <label for="bHoi">Câu hỏi suy niệm</label>
+          <textarea id="bHoi" rows="2" placeholder="Tuần này em sẽ làm gì để loan Tin Mừng cho bạn bè?"></textarea>
+        </div>
+      </div>
+
+      <div class="sticky-bar">
+        <button class="btn gold block" id="bSave">Lưu bài học</button>
+      </div>
+      <p class="note">Bài đã lưu sẽ hiện ở tab <b>Bài học</b> trên bảng thi đua để các em ôn lại trong tuần.</p>
     </section>
 
     <section class="panel" id="panel-cc" hidden>
@@ -111,6 +149,7 @@
       raw = res.data; model = N3.compute(raw);
       document.getElementById('theme').textContent = raw.settings.chuDe || '';
       fillWeeks(); fillTeams(); renderCards(); renderLog(); renderCC();
+      fillLessonWeeks(); renderLesson();
     }).catch(function (err) { N3.toast('Không tải được dữ liệu: ' + err.message, 'err'); })
       .finally(function () { N3.setBusy(false); });
   }
@@ -309,6 +348,68 @@
       N3.toast('Đã lưu ' + batch.length + ' lần bấm', 'ok');
     }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
       .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu thay đổi'; N3.setBusy(false); });
+  };
+
+
+  /* ---- soạn bài học ---- */
+  var bSync = null;
+
+  function scheduleFor(iso) {
+    var list = raw.schedule || [];
+    for (var i = 0; i < list.length; i++) if (list[i][0] === iso) return list[i][1];
+    return '';
+  }
+
+  function fillLessonWeeks() {
+    var sel = document.getElementById('bWeek'); var cur = sel.value;
+    sel.innerHTML = '';
+    var list = N3.sundays(raw.settings.ngayBatDau);
+    (raw.lessons || []).forEach(function (l) { if (list.indexOf(l.ngay) === -1) list.push(l.ngay); });
+    var coBai = {};
+    (raw.lessons || []).forEach(function (l) { if (l.tenBai) coBai[l.ngay] = 1; });
+    list.sort().reverse().forEach(function (iso) {
+      sel.appendChild(h('option', { value: iso, text: 'CN ' + N3.fmtVN(iso) + (coBai[iso] ? ' ✓' : '') }));
+    });
+    sel.value = cur && list.indexOf(cur) > -1 ? cur : N3.latestSunday();
+    if (!sel.value) sel.selectedIndex = 0;
+    if (!bSync) bSync = N3.wireWeekStepper(sel, document.getElementById('bPrev'), document.getElementById('bNext'), renderLesson);
+    bSync();
+  }
+
+  function renderLesson() {
+    var iso = document.getElementById('bWeek').value;
+    var bai = (raw.lessons || []).filter(function (l) { return l.ngay === iso; })[0] || {};
+    document.getElementById('bTen').value = bai.tenBai || '';
+    document.getElementById('bLoi').value = bai.loiChua || '';
+    document.getElementById('bTrich').value = bai.trichDan || '';
+    document.getElementById('bY').value = (bai.yChinh || []).join('\n');
+    document.getElementById('bHoi').value = bai.cauHoi || '';
+
+    var note = document.getElementById('bNote');
+    var ct = scheduleFor(iso);
+    note.textContent = ct ? 'Theo chương trình: ' + ct : (bai.tenBai ? 'Đã soạn bài' : 'Chưa soạn bài cho Chúa Nhật này');
+  }
+
+  document.getElementById('bSave').onclick = function () {
+    var btn = this;
+    if (btn.dataset.saving === '1') return;
+    var iso = document.getElementById('bWeek').value;
+    var bai = {
+      tenBai: document.getElementById('bTen').value.trim(),
+      loiChua: document.getElementById('bLoi').value.trim(),
+      trichDan: document.getElementById('bTrich').value.trim(),
+      yChinh: document.getElementById('bY').value.split('\n'),
+      cauHoi: document.getElementById('bHoi').value.trim()
+    };
+    if (!bai.tenBai) { N3.toast('Bài học cần có tên', 'err'); document.getElementById('bTen').focus(); return; }
+    btn.dataset.saving = '1'; btn.textContent = 'Đang lưu…';
+    N3.setBusy(true);
+    N3.apiPost({ action: 'saveLesson', pin: N3.savedPin(), ngay: iso, bai: bai }).then(function (res) {
+      raw = res.data; model = N3.compute(raw);
+      fillLessonWeeks(); renderLesson();
+      N3.toast('Đã lưu bài học ' + N3.fmtVN(iso), 'ok');
+    }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
+      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu bài học'; N3.setBusy(false); });
   };
 
   /* ---- chi tiết chuyên cần ---- */
