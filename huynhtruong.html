@@ -42,18 +42,17 @@
         <button class="step" type="button" id="wkNext" aria-label="Chúa Nhật sau">›</button>
       </div>
       <p class="wknote" id="wkNote"></p>
-      <div class="score-grid" id="cards"></div>
+      <div class="board" id="cards"></div>
 
       <h2 class="sec">📝 Nhật ký tuần này</h2>
       <div class="log" id="log"></div>
 
-      <div class="sticky-bar">
-        <div class="pending" style="margin-bottom:10px">
-          <span class="count" id="pendingText">Chưa có thay đổi</span>
-          <span class="grow" style="flex:1"></span>
+      <div class="sticky-bar solid">
+        <div class="bar-row">
+          <span class="count" id="pendingText">Đã lưu hết</span>
           <span id="barRight" style="display:flex"></span>
         </div>
-        <button class="btn gold block" id="btnSave">Lưu thay đổi</button>
+        <button class="btn gold block" id="btnSave">Không có thay đổi</button>
       </div>
       <p class="note">Mỗi lần bấm là 1 điểm. Hai tiêu chí bắt đầu ở <b>5</b> mỗi tuần, cộng trừ trong khoảng 0–10. Chuyên cần vẫn tự động tính từ điểm danh của Đội trưởng; nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
     </section>
@@ -230,38 +229,42 @@
     renderCards(); renderLog();
   }
 
-  function tallyRow(iso, doi, key, label) {
-    var val = h('div', { class: 'val' });
+  /** Một ô chấm: [−] điểm [+]. Nhãn tiêu chí nằm ở hàng tiêu đề của bảng. */
+  function tallyCell(iso, t, key, label) {
+    var doi = t.doi;
     var score = scoreOf(iso, doi, key);
     var net = netOf(iso, doi, key);
-    val.appendChild(h('b', { class: score >= 10 ? 'max' : (score <= 0 ? 'min' : ''), text: fmt(score, 0) }));
-    val.appendChild(h('span', {
-      class: net > 0 ? 'up' : (net < 0 ? 'down' : ''),
-      text: net === null ? 'chưa bấm' : (net > 0 ? '+' + net : String(net))
-    }));
-    return h('div', { class: 'tally' }, [
-      h('div', { class: 'lab', text: label }),
-      h('div', { class: 'ctl' }, [
-        h('button', { class: 'minus', type: 'button', 'aria-label': 'Trừ 1 điểm ' + label, text: '−', onclick: function () { tap(iso, doi, key, -1); } }),
-        val,
-        h('button', { class: 'plus', type: 'button', 'aria-label': 'Cộng 1 điểm ' + label, text: '+', onclick: function () { tap(iso, doi, key, 1); } })
-      ])
+    var val = h('div', { class: 'val' }, [
+      h('b', { class: score >= 10 ? 'max' : (score <= 0 ? 'min' : ''), text: fmt(score, 0) }),
+      h('span', {
+        class: net > 0 ? 'up' : (net < 0 ? 'down' : ''),
+        text: net === null || net === 0 ? '·' : (net > 0 ? '+' + net : String(net))
+      })
+    ]);
+    return h('div', { class: 'cell' }, [
+      h('button', { class: 'minus', type: 'button', 'aria-label': 'Trừ 1 điểm ' + label + ' ' + t.name, text: '−', onclick: function () { tap(iso, doi, key, -1); } }),
+      val,
+      h('button', { class: 'plus', type: 'button', 'aria-label': 'Cộng 1 điểm ' + label + ' ' + t.name, text: '+', onclick: function () { tap(iso, doi, key, 1); } })
     ]);
   }
 
+  /** Bảng chấm gọn: mỗi đội một hàng, cả 4 đội nằm trong một màn hình */
   function renderCards() {
     updateWeekNote();
     var iso = document.getElementById('week').value;
     var box = document.getElementById('cards'); box.innerHTML = '';
+    box.appendChild(h('div', { class: 'board-head' }, [
+      h('span'), h('span', { text: '📖 Học tập' }), h('span', { text: '🛡️ Kỷ luật' })
+    ]));
     Object.keys(model.teams).map(Number).sort().forEach(function (d) {
       var t = model.teams[d]; var wk = t.weekly[iso] || {};
-      box.appendChild(h('div', { class: 'score-card', style: { '--team': t.color }, 'data-doi': d }, [
-        h('h3', { text: t.name }),
-        h('div', { class: 'cc', html: wk.recorded
-          ? 'Chuyên cần <b>' + fmt(wk.cc) + '</b> · có mặt ' + wk.present + '/' + wk.recorded
-          : 'Chuyên cần <b>–</b> · chưa điểm danh' }),
-        tallyRow(iso, d, 'ht', 'Học tập'),
-        tallyRow(iso, d, 'kl', 'Kỷ luật')
+      box.appendChild(h('div', { class: 'board-row', style: { '--team': t.color }, 'data-doi': d }, [
+        h('div', { class: 'team' }, [
+          h('b', { text: t.name }),
+          h('small', { text: wk.recorded ? 'CC ' + wk.present + '/' + wk.recorded : 'chưa điểm danh' })
+        ]),
+        tallyCell(iso, t, 'ht', 'Học tập'),
+        tallyCell(iso, t, 'kl', 'Kỷ luật')
       ]));
     });
     updatePending();
@@ -271,8 +274,11 @@
     var iso = document.getElementById('week').value;
     var n = pending.filter(function (e) { return e.ngay === iso; }).length;
     var el = document.getElementById('pendingText');
-    el.textContent = n ? n + ' lần bấm chưa lưu' : 'Đã lưu, không có thay đổi mới';
-    document.getElementById('btnSave').disabled = !n;
+    el.textContent = n ? n + ' lần bấm chưa lưu' : 'Đã lưu hết';
+    el.className = n ? 'count' : 'count done';
+    var btn = document.getElementById('btnSave');
+    btn.disabled = !n;
+    if (btn.dataset.saving !== '1') btn.textContent = n ? 'Lưu ' + n + ' lần bấm' : 'Không có thay đổi';
   }
 
   /** Nhật ký: các lần bấm đã lưu trên máy chủ + các lần đang chờ lưu */
@@ -347,7 +353,7 @@
       fillWeeks(); renderCards(); renderLog(); renderCC();
       N3.toast('Đã lưu ' + batch.length + ' lần bấm', 'ok');
     }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
-      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu thay đổi'; N3.setBusy(false); });
+      .finally(function () { btn.dataset.saving = '0'; N3.setBusy(false); updatePending(); });
   };
 
 

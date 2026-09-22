@@ -41,20 +41,17 @@
     </div>
     <p class="wknote" id="wkNote"></p>
 
-    <div class="quick">
-      <button class="btn ghost" type="button" id="btnAllYes">Tất cả có mặt</button>
-      <button class="link" type="button" id="btnAllNo">Đánh dấu tất cả vắng</button>
+    <div class="hint" id="hint">
+      <span>Chạm vào tên em <b>vắng</b>. Em nào không chạm là có mặt.</span>
+      <button class="link" type="button" id="btnReset">Đặt lại</button>
     </div>
 
     <div class="att-list" id="list"></div>
 
-    <div class="sticky-bar">
-      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <span class="summary-pill" id="summary">0 / 0 có mặt</span>
-        <span style="display:flex;gap:12px;align-items:center">
-          <span class="updated" id="saved"></span>
-          <span id="barRight" style="display:flex"></span>
-        </span>
+    <div class="sticky-bar solid">
+      <div class="bar-row">
+        <span class="summary-pill" id="summary">0 có mặt</span>
+        <span id="barRight" style="display:flex"></span>
       </div>
       <button class="btn gold block" id="btnSave">Lưu điểm danh</button>
     </div>
@@ -125,15 +122,15 @@
   document.getElementById('team').onchange = renderList;
 
 
+  /** Dòng chú thích dưới thanh chọn tuần: tuần nào + đã lưu hay chưa */
   function updateWeekNote() {
     var el = document.getElementById('wkNote');
-    if (!el) return;
     var iso = document.getElementById('week').value;
+    if (!el || !iso) { if (el) el.textContent = ''; return; }
     var today = N3.latestSunday();
-    if (!iso) { el.textContent = ''; return; }
-    if (iso === today) el.textContent = 'Chúa Nhật tuần này';
-    else if (iso > today) el.textContent = 'Chúa Nhật sắp tới';
-    else el.textContent = 'Chúa Nhật đã qua';
+    var when = iso === today ? 'Chúa Nhật tuần này' : (iso > today ? 'Chúa Nhật sắp tới' : 'Chúa Nhật đã qua');
+    var wk = model.teams[currentTeam()].weekly[iso];
+    el.textContent = when + (wk && wk.recorded ? ' · đã lưu ' + wk.present + '/' + wk.recorded + ' có mặt' : ' · chưa lưu');
   }
 
   function renderList() {
@@ -144,60 +141,99 @@
     state = {};
     var existing = {};
     if (wk) wk.attendance.forEach(function (a) { existing[a.id] = a; });
+    var daLuu = wk && wk.recorded > 0;
+
     var list = document.getElementById('list'); list.innerHTML = '';
     t.active.forEach(function (m) {
       var ex = existing[m.id];
-      state[m.id] = { hoTen: m.tenThanh + ' ' + m.hoTen, coMat: ex ? ex.coMat : null, ghiChu: ex ? ex.ghiChu : '' };
-      var yes = h('button', { type: 'button', text: 'Có mặt', onclick: function () { set(m.id, true); } });
-      var no = h('button', { type: 'button', text: 'Vắng', onclick: function () { set(m.id, false); } });
-      var note = h('input', { type: 'text', placeholder: 'Ghi chú (vd: có phép)', value: state[m.id].ghiChu, style: { marginTop: '8px', padding: '8px 10px', fontSize: '14px' }, hidden: 'hidden' });
+      // Buổi chưa lưu: mặc định có mặt. Buổi đã lưu: hiện đúng như đã lưu.
+      // Em mới vào sau buổi đó thì không có bản ghi -> cũng mặc định có mặt.
+      state[m.id] = {
+        hoTen: m.tenThanh + ' ' + m.hoTen,
+        coMat: ex ? ex.coMat : true,
+        ghiChu: ex ? ex.ghiChu : ''
+      };
+      var note = h('input', { type: 'text', class: 'att-note', placeholder: 'Lý do vắng (vd: có phép)', value: state[m.id].ghiChu });
       note.oninput = function () { state[m.id].ghiChu = note.value; };
-      var row = h('div', { class: 'att-row', 'data-id': m.id }, [
-        h('div', null, [h('div', { class: 'name' }, [m.tenThanh + ' ' + m.hoTen, m.role ? h('small', { text: m.role }) : null]), note]),
-        h('div', { class: 'seg' }, [yes, no])
+
+      // Dòng trên (tên + nhãn) là vùng chạm; ô lý do nằm riêng một dòng bên dưới
+      // để chạm lại sửa nhầm không bao giờ rơi trúng ô nhập liệu.
+      var top = h('div', {
+        class: 'att-top', role: 'button', tabindex: '0',
+        onclick: function () { toggle(m.id); },
+        onkeydown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(m.id); } }
+      }, [
+        h('div', { class: 'name' }, [m.tenThanh + ' ' + m.hoTen, m.role ? h('small', { text: m.role }) : null]),
+        h('span', { class: 'mark' })
       ]);
-      row._yes = yes; row._no = no; row._note = note;
+      var row = h('div', { class: 'att-row', 'data-id': m.id }, [top, note]);
+      row._top = top;
+      row._note = note;
       list.appendChild(row);
       paint(m.id);
     });
-    var saved = wk && wk.recorded ? 'Đã lưu ' + wk.present + '/' + wk.recorded : 'Chưa lưu buổi này';
-    document.getElementById('saved').textContent = saved;
+
+    document.getElementById('btnSave').dataset.mode = daLuu ? 'update' : 'new';
     updateSummary();
   }
 
-  function set(id, v) { state[id].coMat = v; paint(id); updateSummary(); }
+  function toggle(id) {
+    state[id].coMat = !state[id].coMat;
+    if (navigator.vibrate) navigator.vibrate(10);
+    paint(id); updateSummary();
+    // Không tự bật con trỏ vào ô lý do: trên điện thoại bàn phím sẽ bật lên
+    // che danh sách mỗi lần đánh vắng, trong khi lý do không bắt buộc.
+  }
+
   function paint(id) {
-    var row = document.querySelector('.att-row[data-id="' + id + '"]'); var s = state[id];
-    row._yes.className = s.coMat === true ? 'on-yes' : ''; row._no.className = s.coMat === false ? 'on-no' : '';
-    row._note.hidden = s.coMat !== false; if (s.coMat === false) row._note.removeAttribute('hidden');
+    var row = document.querySelector('.att-row[data-id="' + id + '"]');
+    var co = state[id].coMat;
+    row.classList.toggle('absent', !co);
+    row._top.setAttribute('aria-pressed', co ? 'false' : 'true');
+    row._top.setAttribute('aria-label', state[id].hoTen + (co ? ', có mặt. Chạm để đánh vắng' : ', vắng. Chạm để đánh có mặt'));
+    row.querySelector('.mark').textContent = co ? 'Có mặt' : 'Vắng';
+    row._note.hidden = co;
   }
+
+  /** Nút Lưu tự ghi rõ sắp lưu gì, để không lưu nhầm mà không hay */
   function updateSummary() {
-    var ids = Object.keys(state), p = ids.filter(function (i) { return state[i].coMat === true; }).length;
-    var unset = ids.filter(function (i) { return state[i].coMat === null; }).length;
-    document.getElementById('summary').textContent = p + ' / ' + ids.length + ' có mặt' + (unset ? ' · còn ' + unset + ' chưa chọn' : '');
+    var ids = Object.keys(state);
+    var vang = ids.filter(function (i) { return !state[i].coMat; });
+    var co = ids.length - vang.length;
+    document.getElementById('summary').textContent =
+      co + ' có mặt · ' + vang.length + ' vắng';
+    var btn = document.getElementById('btnSave');
+    if (btn.dataset.saving === '1') return;
+    var verb = btn.dataset.mode === 'update' ? 'Cập nhật' : 'Lưu';
+    btn.textContent = verb + ' · ' + co + ' có mặt, ' + vang.length + ' vắng';
   }
-  document.getElementById('btnAllYes').onclick = function () { Object.keys(state).forEach(function (i) { set(i, true); }); };
-  document.getElementById('btnAllNo').onclick = function () {
-    if (!confirm('Đánh dấu cả đội là vắng?')) return;
-    Object.keys(state).forEach(function (i) { set(i, false); });
+
+  document.getElementById('btnReset').onclick = function () {
+    Object.keys(state).forEach(function (i) { state[i].coMat = true; state[i].ghiChu = ''; paint(i); });
+    document.querySelectorAll('.att-note').forEach(function (n) { n.value = ''; });
+    updateSummary();
+    N3.toast('Đã đặt lại: cả đội có mặt');
   };
 
   document.getElementById('btnSave').onclick = function () {
     var btn = this;
     if (btn.dataset.saving === '1') return;   // chặn bấm liên tiếp
     var ids = Object.keys(state);
-    var unset = ids.filter(function (i) { return state[i].coMat === null; });
-    if (unset.length && !confirm('Còn ' + unset.length + ' em chưa chọn, sẽ tính là vắng. Lưu luôn?')) return;
     var iso = document.getElementById('week').value, d = currentTeam();
-    var records = ids.map(function (i) { return { id: i, hoTen: state[i].hoTen, coMat: state[i].coMat === true, ghiChu: state[i].ghiChu || '' }; });
+    var records = ids.map(function (i) {
+      return { id: i, hoTen: state[i].hoTen, coMat: state[i].coMat === true, ghiChu: state[i].coMat ? '' : (state[i].ghiChu || '') };
+    });
     btn.dataset.saving = '1'; btn.textContent = 'Đang lưu…';
     N3.setBusy(true);
     N3.apiPost({ action: 'saveAttendance', pin: N3.savedPin(), doi: d, ngay: iso, records: records }).then(function (res) {
       raw = res.data; model = N3.compute(raw);
+      btn.dataset.saving = '0';
       renderList();
       N3.toast('Đã lưu điểm danh ' + N3.fmtVN(iso), 'ok');
-    }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
-      .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu điểm danh'; N3.setBusy(false); });
+    }).catch(function (err) {
+      btn.dataset.saving = '0'; updateSummary();
+      N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message);
+    }).finally(function () { N3.setBusy(false); });
   };
 
   var pin = N3.savedPin();
