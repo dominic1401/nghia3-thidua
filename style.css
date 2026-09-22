@@ -391,3 +391,235 @@ td.best { font-weight: 800; color: var(--gold-deep); }
 .sheet .btn { text-align: center; text-decoration: none; padding: 14px; }
 .sheet .danger { color: var(--no); background: #fff; border: 1px solid var(--no-soft); font-weight: 600; }
 .sheet .err { color: var(--no); font-size: 14px; margin: 0; }
+
+/* =====================================================================
+   GIAO DIỆN THI ĐUA — theo ảnh mẫu trang chủ (giai đoạn 3)
+   ===================================================================== */
+:root { --red: #D7261E; }
+
+/* ---- Tiêu đề gọn ---- */
+.mast.compact { padding: 2px 0 12px; }
+.mast.compact .brand { gap: 12px; min-width: 0; }
+.mast.compact .brand-text { min-width: 0; }
+.mast.compact .logo { width: 56px; height: 56px; }
+.mast.compact .org { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mast.compact h1 { font-size: clamp(21px, 5.8vw, 30px); margin: 1px 0 0; }
+.mast.compact .theme { font-size: 13.5px; margin-top: 2px; }
+
+/* ---- Tab: biểu tượng + chữ, chia đều 5 cột, không cần cuộn ---- */
+.tabs.icon-tabs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin: 8px 0 16px; overflow: visible; }
+.tabs.icon-tabs button {
+  display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 0;
+  padding: 9px 1px 8px; font-size: clamp(10px, 2.85vw, 12px); letter-spacing: -.01em; font-weight: 600; color: var(--muted);
+  border-bottom: 3px solid transparent; white-space: nowrap;
+}
+.tabs.icon-tabs button svg { color: #A0A5B2; transition: color .15s, transform .15s; }
+.tabs.icon-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--gold); }
+.tabs.icon-tabs button[aria-selected="true"] svg { color: var(--gold-deep); transform: translateY(-1px); }
+
+/* ---- Linh vật đội: ảnh phủ lên đĩa màu có số (phòng khi ảnh không tải) ---- */
+.mascot {
+  position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 50%;
+  background: radial-gradient(circle closest-side, var(--team) 86%, transparent 88%);
+  color: #fff; font-weight: 800; line-height: 1; vertical-align: middle;
+}
+.mascot img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+/* ---- Huy chương: số nằm đúng tâm đĩa (40% chiều cao ảnh) ---- */
+.medal-img { position: relative; display: inline-block; flex: 0 0 auto; }
+.medal-img img { display: block; width: 100%; height: 100%; }
+.medal-img b { position: absolute; left: 0; right: 0; top: 40.2%; transform: translateY(-50%); text-align: center; font-weight: 800; line-height: 1; }
+.medal-img.m1 b { color: #7A4E00; text-shadow: 0 1px 0 rgba(255, 240, 180, .8); }
+.medal-img.m2 b { color: #3C4452; text-shadow: 0 1px 0 rgba(255, 255, 255, .75); }
+.medal-img.m3 b { color: #fff; text-shadow: 0 1px 1px rgba(80, 30, 0, .55); }
+.medal-plain {
+  display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 50%; font-weight: 800; color: #5B6272;
+  background: linear-gradient(150deg, #F2F3F6, #D7DBE2); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .07);
+}
+
+/* ---- Dải quán quân tuần ---- */
+.champ2 {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+  padding: 10px 14px 10px 6px; border-radius: 20px;
+  background: linear-gradient(112deg, #FFEDB3 0%, #F9D569 52%, #F0BA3C 100%);
+  box-shadow: 0 8px 22px rgba(169, 122, 10, .22), inset 0 1px 0 rgba(255, 255, 255, .65);
+}
+.champ2::before {
+  content: ""; position: absolute; left: -54px; top: 50%; width: 230px; height: 230px; transform: translateY(-50%);
+  background: repeating-conic-gradient(rgba(255, 255, 255, .38) 0 7deg, transparent 7deg 18deg);
+  -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 66%); mask-image: radial-gradient(circle, #000 18%, transparent 66%);
+}
+.champ2::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -34px; height: 70px; pointer-events: none;
+  background: radial-gradient(55% 100% at 72% 100%, rgba(205, 140, 10, .32), transparent 70%),
+              radial-gradient(45% 100% at 100% 100%, rgba(205, 140, 10, .26), transparent 70%);
+}
+.champ2 > * { position: relative; z-index: 1; }
+.champ2 .trophy { width: 80px; height: auto; margin: -4px 0 -8px; filter: drop-shadow(0 4px 6px rgba(120, 80, 0, .28)); }
+.champ2 .ctext { min-width: 0; }
+.champ2 .k { display: block; font-size: 12px; font-weight: 600; color: #6B4A00; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.champ2 b { display: block; font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1.15; }
+.champ2 .v { display: block; font-size: 13px; font-weight: 600; color: #5A3E00; }
+.champ2 .cm { box-shadow: 0 0 0 3px rgba(255, 255, 255, .7), 0 4px 10px rgba(120, 80, 0, .25); border-radius: 50%; }
+.sparkles { position: absolute; inset: 0; z-index: 0 !important; pointer-events: none; }
+.sparkles i {
+  position: absolute; width: 11px; height: 11px; background: #fff; opacity: .9;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+}
+.sparkles i:nth-child(1) { right: 3%; top: 10%; }
+.sparkles i:nth-child(2) { right: 19%; bottom: 10%; width: 7px; height: 7px; }
+.sparkles i:nth-child(3) { right: 2%; bottom: 16%; width: 8px; height: 8px; }
+
+/* ---- Đội của em ---- */
+.picker2 { margin: 18px 0 2px; }
+.picker2 .lab { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.picks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.pk {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; cursor: pointer;
+  padding: 7px 0 8px; border-radius: 18px; color: var(--ink-2); font-weight: 600; font-size: 13px;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+}
+.pk .mascot { transition: transform .15s, box-shadow .15s; box-shadow: 0 4px 10px rgba(28, 37, 64, .16); }
+.pk.on { color: var(--ink); background: #fff; box-shadow: 0 2px 10px rgba(28, 37, 64, .07); }
+.pk.on .mascot { transform: scale(1.05); box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--gold), 0 6px 14px rgba(169, 122, 10, .3); }
+.pk:active .mascot { transform: scale(.94); }
+.mysum {
+  display: flex; gap: 10px; align-items: center; margin-top: 10px; padding: 10px 12px;
+  border-radius: 16px; background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--team);
+}
+.mysum p { margin: 0; font-size: 14.5px; line-height: 1.45; }
+
+/* ---- Thẻ hạng 1: điểm nhấn duy nhất của trang ---- */
+.hero2 {
+  position: relative; display: grid; grid-template-columns: 118px 1fr; gap: 10px; align-items: center;
+  margin-top: 24px; padding: 18px 12px 18px 8px; border-radius: 24px;
+  background: radial-gradient(120% 95% at 16% 42%, #FFF1C4 0%, #FFF8E4 46%, #FFFDF7 100%);
+  border: 1.5px solid #F0D27E; box-shadow: 0 12px 28px rgba(169, 122, 10, .17);
+}
+.hero2.mine { box-shadow: inset 0 0 0 3px var(--team), 0 12px 28px rgba(169, 122, 10, .17); }
+.hero-art { position: relative; width: 118px; height: 130px; display: grid; place-items: center; }
+.hero-art .rays {
+  position: absolute; inset: -14px; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(240, 192, 0, .30) 0 6deg, transparent 6deg 15deg);
+  -webkit-mask-image: radial-gradient(circle, #000 22%, transparent 70%); mask-image: radial-gradient(circle, #000 22%, transparent 70%);
+  animation: n3spin 48s linear infinite;
+}
+.hero-art .laurel { position: absolute; width: 140px; height: 140px; left: 50%; top: 50%; transform: translate(-50%, -46%); }
+.hero-art .hero-m { z-index: 1; box-shadow: 0 6px 16px rgba(28, 37, 64, .24); }
+.hero-art .crown { position: absolute; z-index: 2; width: 50px; height: 50px; left: -4px; top: -10px; transform: rotate(-20deg); filter: drop-shadow(0 3px 4px rgba(120, 80, 0, .3)); }
+.hero-art .hero-medal { position: absolute; z-index: 2; left: 50%; bottom: -14px; transform: translateX(-50%); filter: drop-shadow(0 3px 4px rgba(120, 80, 0, .25)); }
+.hero-info { min-width: 0; }
+.hname { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hname b { font-size: 20px; font-weight: 800; }
+.hsub { margin: 1px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.hscore { margin: 4px 0 8px; display: flex; align-items: baseline; gap: 6px; }
+.hscore b { font-size: 46px; font-weight: 800; letter-spacing: -.03em; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hscore span { font-size: 14px; font-weight: 700; color: var(--gold-deep); }
+.hero2 .xp { height: 12px; margin: 0 0 10px; background: #F3E4B9; }
+.hero2 .xp i { background: linear-gradient(90deg, #EBA800, #FFD84D); }
+.hchips { display: flex; gap: 5px; flex-wrap: wrap; }
+.cchip {
+  display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px 3px 3px; border-radius: 999px; background: #fff;
+  box-shadow: 0 2px 8px rgba(169, 122, 10, .14); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums;
+}
+.cchip img { width: 18px; height: 18px; }
+.streak {
+  display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; color: #8A5A00;
+  background: var(--gold-soft); padding: 2px 8px 2px 4px; border-radius: 999px; white-space: nowrap;
+}
+.streak img { width: 16px; height: 16px; }
+.hero2 .streak { margin-top: 8px; }
+@keyframes n3spin { to { transform: rotate(360deg); } }
+
+.move { font-size: 12.5px; font-weight: 800; white-space: nowrap; }
+.move.up { color: var(--ok); }
+.move.down { color: var(--red); }
+
+/* ---- Hạng 2 trở đi ---- */
+.rows2 { display: grid; gap: 10px; margin-top: 16px; }
+.row2 {
+  display: grid; grid-template-columns: 38px 44px 1fr auto; align-items: center; gap: 10px;
+  padding: 10px 14px 10px 10px; background: #fff; border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: 0 4px 12px rgba(28, 37, 64, .05);
+}
+.row2.mine { box-shadow: inset 0 0 0 3px var(--team), 0 4px 12px rgba(28, 37, 64, .05); }
+.row2 .mascot { box-shadow: 0 3px 8px rgba(28, 37, 64, .16); }
+.rinfo { min-width: 0; }
+.rname { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rname b { font-size: 16px; font-weight: 700; }
+.row2 .xp { margin: 6px 0 0; height: 10px; }
+.rscore { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.rscore b { font-size: 24px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; font-variant-numeric: tabular-nums; }
+
+/* ---- Huy hiệu mùa giải ---- */
+.awards2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.aw { text-align: center; padding: 12px 4px 12px; background: #fff; border: 1px solid var(--line); border-radius: 18px; }
+.aw-art { position: relative; width: 76px; height: 76px; margin: 0 auto 8px; }
+.aw-art > img { width: 76px; height: 76px; filter: drop-shadow(0 4px 6px rgba(120, 80, 0, .2)); }
+.aw-art .aw-m { position: absolute; right: -8px; bottom: -4px; box-shadow: 0 0 0 2px #fff; }
+.aw b { display: block; font-size: 13px; line-height: 1.25; }
+.aw span { display: block; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+
+/* ---- Tab tiêu chí ---- */
+.crit-head { display: flex; align-items: center; gap: 12px; margin: 2px 0 14px; }
+.crit-head h2 { margin: 0; font-size: 22px; }
+.tcell, .thcell { display: inline-flex; align-items: center; gap: 8px; }
+.thcell { gap: 5px; }
+table.wk th.num .thcell { justify-content: flex-end; }
+
+/* ---- Trạng thái trống / lỗi ---- */
+.state { text-align: center; padding: 18px 16px 26px; }
+.state img { display: block; width: min(280px, 78%); height: auto; margin: 0 auto 4px; }
+.state h3 { margin: 6px 0 4px; font-size: 20px; }
+.state p { margin: 0 auto; max-width: 34ch; color: var(--ink-2); }
+.state .btn { margin-top: 16px; min-width: 150px; }
+.state .link.small { display: block; margin: 12px auto 0; background: none; border: 0; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; font-size: 13px; cursor: pointer; }
+.state .tech { font-size: 11.5px; color: var(--muted); margin-top: 10px; word-break: break-word; }
+
+/* ---- Khung chờ tải ---- */
+.skel { display: grid; gap: 12px; }
+.sk { border-radius: 18px; background: linear-gradient(90deg, #F1ECDC 25%, #F9F5EA 45%, #F1ECDC 65%); background-size: 300% 100%; animation: n3shimmer 1.3s ease-in-out infinite; }
+.sk-banner { height: 80px; border-radius: 20px; }
+.sk-picks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 8px 0; }
+.sk-dot { width: 58px; height: 58px; border-radius: 50%; margin: 0 auto; }
+.sk-hero { height: 168px; border-radius: 24px; margin-top: 8px; }
+.sk-row { height: 66px; }
+@keyframes n3shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
+/* ---- Pháo giấy ---- */
+.confetti { position: fixed; inset: 0; z-index: 70; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -14px; width: 8px; height: 13px; border-radius: 2px; animation-name: n3fall; animation-timing-function: cubic-bezier(.3, .6, .5, 1); animation-fill-mode: forwards; }
+@keyframes n3fall { to { transform: translate(var(--x), 105vh) rotate(var(--r)); } }
+
+.rule { margin-top: 26px; font-size: 13px; }
+
+/* Nút menu nổi tự lánh đi khi các em cuộn xuống đọc, hiện lại khi cuộn lên */
+.fab { transition: transform .22s ease, opacity .22s ease; }
+.fab.away { transform: translateY(140%); opacity: 0; }
+.rows2 { padding-bottom: 8px; }
+
+/* Bảng trên điện thoại: thu khoảng đệm để không phải cuộn ngang */
+@media (max-width: 480px) {
+  .dash th, .dash td { padding: 9px 8px; }
+  .dash table.wk th, .dash table.wk td { padding: 9px 6px; }
+  .dash table.wk td:first-child, .dash table.wk th:first-child { padding-left: 12px; }
+}
+
+/* Linh vật trên hai trang làm việc */
+.board-row .team { display: grid; justify-items: center; text-align: center; gap: 0; line-height: 1.15; }
+.board-row .team b { font-size: 12.5px; line-height: 1.15; }
+.board-row .team small { font-size: 10px; line-height: 1.15; }
+.board-row .team .mascot { margin-bottom: 1px; box-shadow: 0 2px 5px rgba(28, 37, 64, .15); }
+.title-m { margin-right: 10px; box-shadow: 0 3px 8px rgba(28, 37, 64, .18); }
+h1:has(.title-m) { display: flex; align-items: center; }
+
+/* Bảng chấm vừa cả màn hình điện thoại nhỏ (iPhone SE 667px) */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.bar-row.tight { margin-bottom: 0; gap: 10px; }
+.bar-row.tight > .btn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board { gap: 6px; }
+.board-row { padding: 5px 8px 5px 10px; }
+.board-row .cell button { height: 44px; }
+.board-row .val b { font-size: 20px; }
+.mast.compact h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mast.compact .brand > div { min-width: 0; }

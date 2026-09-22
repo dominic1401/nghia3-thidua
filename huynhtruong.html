@@ -11,10 +11,10 @@
 </head>
 <body>
 <div class="wrap">
-  <header class="mast">
+  <header class="mast compact">
     <div class="brand"><img class="logo" src="logo.png" alt="Huy hiệu lớp Nghĩa Sĩ 3" width="76" height="76"><div>
       <p class="org">Lớp Nghĩa 3</p>
-      <h1>Huynh Trưởng chấm điểm</h1>
+      <h1>Chấm điểm</h1>
       <p class="theme" id="theme">Môn đệ nhỏ loan Tin Mừng</p>
     </div></div>
   </header>
@@ -48,11 +48,11 @@
       <div class="log" id="log"></div>
 
       <div class="sticky-bar solid">
-        <div class="bar-row">
-          <span class="count" id="pendingText">Đã lưu hết</span>
+        <span class="count sr-only" id="pendingText" aria-live="polite">Đã lưu hết</span>
+        <div class="bar-row tight">
+          <button class="btn gold block" id="btnSave">Không có thay đổi</button>
           <span id="barRight" style="display:flex"></span>
         </div>
-        <button class="btn gold block" id="btnSave">Không có thay đổi</button>
       </div>
       <p class="note">Mỗi lần bấm là 1 điểm. Hai tiêu chí bắt đầu ở <b>5</b> mỗi tuần, cộng trừ trong khoảng 0–10. Chuyên cần vẫn tự động tính từ điểm danh của Đội trưởng; nếu đội chưa điểm danh, bạn có thể <a href="doitruong.html">điểm danh thay</a> bằng PIN Huynh Trưởng.</p>
     </section>
@@ -261,8 +261,9 @@
       var t = model.teams[d]; var wk = t.weekly[iso] || {};
       box.appendChild(h('div', { class: 'board-row', style: { '--team': t.color }, 'data-doi': d }, [
         h('div', { class: 'team' }, [
+          N3.mascot(d, 24),
           h('b', { text: t.name }),
-          h('small', { text: wk.recorded ? 'CC ' + wk.present + '/' + wk.recorded : 'chưa điểm danh' })
+          h('small', { text: wk.recorded ? 'CC ' + wk.present + '/' + wk.recorded : 'chưa ĐD' })
         ]),
         tallyCell(iso, t, 'ht', 'Học tập'),
         tallyCell(iso, t, 'kl', 'Kỷ luật')
@@ -276,7 +277,7 @@
     var n = pending.filter(function (e) { return e.ngay === iso; }).length;
     var el = document.getElementById('pendingText');
     el.textContent = n ? n + ' lần bấm chưa lưu' : 'Đã lưu hết';
-    el.className = n ? 'count' : 'count done';
+    el.classList.toggle('done', !n);   // chỉ bật/tắt, không ghi đè lớp sr-only
     var btn = document.getElementById('btnSave');
     btn.disabled = !n;
     if (btn.dataset.saving !== '1') btn.textContent = n ? 'Lưu ' + n + ' lần bấm' : 'Không có thay đổi';

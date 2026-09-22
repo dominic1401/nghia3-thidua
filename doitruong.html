@@ -11,7 +11,7 @@
 </head>
 <body>
 <div class="wrap" style="max-width:640px">
-  <header class="mast">
+  <header class="mast compact">
     <div class="brand"><img class="logo" src="logo.png" alt="Huy hiệu lớp Nghĩa Sĩ 3" width="76" height="76"><div>
       <p class="org">Lớp Nghĩa 3</p>
       <h1 id="title">Điểm danh</h1>
@@ -137,7 +137,10 @@
     updateWeekNote();
     var d = currentTeam(), iso = document.getElementById('week').value;
     var t = model.teams[d]; var wk = t.weekly[iso];
-    document.getElementById('title').textContent = 'Điểm danh ' + t.name;
+    var title = document.getElementById('title');
+    title.textContent = '';
+    title.appendChild(N3.mascot(d, 38, 'title-m'));
+    title.appendChild(document.createTextNode('Điểm danh ' + t.name));
     state = {};
     var existing = {};
     if (wk) wk.attendance.forEach(function (a) { existing[a.id] = a; });

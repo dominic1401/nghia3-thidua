@@ -272,7 +272,20 @@
     // Trang nào có thanh cố định ở đáy thì gắn nút vào đó để không đè lên nút Lưu
     var host = opts.anchor ? document.querySelector(opts.anchor) : null;
     if (host) { fab.classList.add('inline'); host.appendChild(fab); }
-    else document.body.appendChild(fab);
+    else {
+      document.body.appendChild(fab);
+      // Cuộn xuống để đọc thì nút lánh đi, cuộn lên hoặc tới cuối trang thì hiện lại
+      var lastY = window.scrollY, ticking = false;
+      window.addEventListener('scroll', function () {
+        if (ticking) return; ticking = true;
+        requestAnimationFrame(function () {
+          var y = window.scrollY, atEnd = window.innerHeight + y >= document.body.scrollHeight - 40;
+          if (!open) fab.classList.toggle('away', y > lastY + 4 && y > 120 && !atEnd);
+          if (Math.abs(y - lastY) > 4) lastY = y;
+          ticking = false;
+        });
+      }, { passive: true });
+    }
 
     function close() {
       open = false; fab.setAttribute('aria-expanded', 'false'); fab.hidden = false;
@@ -390,6 +403,105 @@
     } catch (e) { /* trình duyệt chặn lưu trữ: vẫn dùng được trong phiên này */ }
   }
 
+  /* ---------------- Thành phần giao diện dùng chung ---------------- */
+  var ASSET = 'assets/';
+
+  /** Điểm thi đua hiển thị = điểm tuần × 10, làm tròn thành số nguyên (21,8 -> 218) */
+  function pts(x) { return (x === null || x === undefined) ? '–' : String(Math.round(Number(x) * 10)); }
+  function ptsNum(x) { return Math.round(Number(x || 0) * 10); }
+
+  /**
+   * Linh vật đội. Phía sau ảnh là đĩa màu đội có số — nếu ảnh không tải được
+   * vẫn còn nhận ra đội nào.
+   */
+  function mascot(doi, size, cls) {
+    var wrap = h('span', {
+      class: 'mascot' + (cls ? ' ' + cls : ''),
+      style: { '--team': TEAM_COLORS[doi] || '#444', width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.4) + 'px' },
+      'aria-hidden': 'true'
+    }, [String(doi)]);
+    var img = h('img', { src: ASSET + 'team-' + doi + '.webp', alt: '', width: size, height: size, loading: 'lazy', decoding: 'async' });
+    img.onerror = function () { img.remove(); };
+    wrap.appendChild(img);
+    return wrap;
+  }
+
+  /** Huy chương hạng 1–3 (ảnh, số đặt bằng code) và đĩa xám cho hạng 4 trở đi */
+  function medal(rank, size) {
+    if (rank > 3) {
+      return h('span', { class: 'medal-plain', style: { width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.46) + 'px' },
+        'aria-label': 'Hạng ' + rank, text: String(rank) });
+    }
+    var img = h('img', { src: ASSET + 'medal-' + rank + '.webp', alt: '', width: size, height: size, decoding: 'async' });
+    return h('span', { class: 'medal-img m' + rank, style: { width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.36) + 'px' },
+      role: 'img', 'aria-label': 'Hạng ' + rank }, [img, h('b', { text: String(rank) })]);
+  }
+
+  /** Ảnh trang trí (vương miện, nguyệt quế, cúp, biểu tượng tiêu chí) */
+  function asset(name, size, cls) {
+    var img = h('img', { src: ASSET + name + '.webp', alt: '', class: cls || '', width: size, height: size, decoding: 'async', 'aria-hidden': 'true' });
+    img.onerror = function () { img.style.visibility = 'hidden'; };
+    return img;
+  }
+
+  /** Biểu tượng đơn sắc cho tab — vẽ bằng nét, đổi màu theo trạng thái tab */
+  var GLYPH = {
+    tong: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2 2 0 0 0 1.5 4H8M16 6h2.5a2 2 0 0 1-1.5 4H16"/><path d="M12 13v3.5M8.5 20h7M9.5 16.5h5"/>',
+    cc: '<path d="M12 3.5c.8 2.8 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-2.1 1-3.5 2.3-4.6.1 1.9.9 3 2 3.3-.6-2.6-.5-5 .2-7.7z"/>',
+    ht: '<path d="M3.5 5.5H9a3 3 0 0 1 3 3v11a2.5 2.5 0 0 0-2.5-2.5h-6z"/><path d="M20.5 5.5H15a3 3 0 0 0-3 3v11a2.5 2.5 0 0 1 2.5-2.5h6z"/>',
+    kl: '<path d="M12 3.2 19.5 6v5.6c0 4.7-3.2 7.9-7.5 9.2-4.3-1.3-7.5-4.5-7.5-9.2V6z"/><path d="m9 12 2.1 2.1L15.2 10"/>',
+    bai: '<path d="M7 4h10.5A1.5 1.5 0 0 1 19 5.5V18a2 2 0 0 1-2 2H8.5"/><path d="M7 4a2 2 0 0 0-2 2v1.5h4V6a2 2 0 0 0-2-2zM9 7.5V18a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-1h4"/><path d="M11.5 9.5h4.5M11.5 13h4.5"/>'
+  };
+  function glyph(name) {
+    return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (GLYPH[name] || '') + '</svg>';
+  }
+
+  /** Khối trạng thái: trống, chưa có dữ liệu, lỗi — luôn nói rõ chuyện gì và làm gì tiếp */
+  function stateView(o) {
+    var box = h('div', { class: 'state' + (o.kind ? ' ' + o.kind : '') });
+    if (o.img) {
+      var im = h('img', { src: ASSET + o.img + '.webp', alt: '', width: 320, height: 240, decoding: 'async' });
+      im.onerror = function () { im.remove(); };
+      box.appendChild(im);
+    }
+    box.appendChild(h('h3', { text: o.title }));
+    if (o.text) box.appendChild(h('p', { text: o.text }));
+    if (o.action) box.appendChild(h('button', { class: 'btn gold', type: 'button', text: o.action.label, onclick: o.action.run }));
+    if (o.secondary) box.appendChild(h('button', { class: 'link small', type: 'button', text: o.secondary.label, onclick: o.secondary.run }));
+    return box;
+  }
+
+  /** Khung xương hiện trong lúc chờ tải, đúng hình dạng trang sắp hiện ra */
+  function skeleton() {
+    var s = h('div', { class: 'skel', 'aria-hidden': 'true' });
+    s.appendChild(h('div', { class: 'sk sk-banner' }));
+    var row = h('div', { class: 'sk-picks' });
+    for (var i = 0; i < 4; i++) row.appendChild(h('div', { class: 'sk sk-dot' }));
+    s.appendChild(row);
+    s.appendChild(h('div', { class: 'sk sk-hero' }));
+    for (var j = 0; j < 3; j++) s.appendChild(h('div', { class: 'sk sk-row' }));
+    return s;
+  }
+
+  /** Pháo giấy — chỉ một lần, và không chạy nếu máy bật chế độ giảm chuyển động */
+  function confetti() {
+    try { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; } catch (e) { return; }
+    var colors = ['#E9B62D', '#F0C000', '#D7261E', '#2F6FB5', '#3E8E6B', '#7A4FA8', '#C8552E'];
+    var layer = h('div', { class: 'confetti', 'aria-hidden': 'true' });
+    for (var i = 0; i < 46; i++) {
+      var p = h('i');
+      p.style.left = (Math.random() * 100) + '%';
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 0.35) + 's';
+      p.style.animationDuration = (1.3 + Math.random() * 0.9) + 's';
+      p.style.setProperty('--x', (Math.random() * 160 - 80) + 'px');
+      p.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
+      layer.appendChild(p);
+    }
+    document.body.appendChild(layer);
+    setTimeout(function () { layer.remove(); }, 2600);
+  }
+
   window.N3 = {
     apiGet: apiGet, apiPost: apiPost, apiUrl: apiUrl, resetApi: function () { localStorage.removeItem(LS_API); },
     toISO: toISO, fromISO: fromISO, fmtVN: fmtVN, fmtShort: fmtShort, sundays: sundays, latestSunday: latestSunday,
@@ -397,6 +509,8 @@
     savedPin: savedPin, savePin: savePin, clearPin: clearPin,
     mountRoleMenu: mountRoleMenu, wireWeekStepper: wireWeekStepper,
     enhanceTabs: enhanceTabs, myTeam: myTeam, setMyTeam: setMyTeam,
+    pts: pts, ptsNum: ptsNum, mascot: mascot, medal: medal, asset: asset, glyph: glyph,
+    stateView: stateView, skeleton: skeleton, confetti: confetti,
     h: h, fmt: fmt, toast: toast, setBusy: setBusy
   };
 })();
