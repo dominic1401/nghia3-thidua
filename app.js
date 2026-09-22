@@ -357,12 +357,46 @@
     return sync;
   }
 
+  /* ---------------- Tab cuộn ngang ---------------- */
+  /**
+   * Khi hàng tab dài hơn màn hình: làm mờ mép phía còn tab ẩn để các em biết
+   * có thể vuốt, và tự cuộn tab đang chọn vào giữa tầm nhìn.
+   */
+  function enhanceTabs(el) {
+    if (!el) return;
+    function update() {
+      var max = el.scrollWidth - el.clientWidth;
+      el.classList.toggle('more-left', el.scrollLeft > 4);
+      el.classList.toggle('more-right', el.scrollLeft < max - 4);
+    }
+    el.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('button');
+      if (b && b.scrollIntoView) b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    });
+    update();
+    setTimeout(update, 300);   // sau khi font tải xong, bề rộng tab có thể đổi
+  }
+
+  /* ---------------- Đội của em ---------------- */
+  var LS_TEAM = 'nghia3_doi_cua_em';
+  function myTeam() {
+    try { var v = Number(localStorage.getItem(LS_TEAM)); return v > 0 ? v : null; } catch (e) { return null; }
+  }
+  function setMyTeam(doi) {
+    try {
+      if (doi) localStorage.setItem(LS_TEAM, String(doi)); else localStorage.removeItem(LS_TEAM);
+    } catch (e) { /* trình duyệt chặn lưu trữ: vẫn dùng được trong phiên này */ }
+  }
+
   window.N3 = {
     apiGet: apiGet, apiPost: apiPost, apiUrl: apiUrl, resetApi: function () { localStorage.removeItem(LS_API); },
     toISO: toISO, fromISO: fromISO, fmtVN: fmtVN, fmtShort: fmtShort, sundays: sundays, latestSunday: latestSunday,
     compute: compute, rankBy: rankBy, TEAM_COLORS: TEAM_COLORS,
     savedPin: savedPin, savePin: savePin, clearPin: clearPin,
     mountRoleMenu: mountRoleMenu, wireWeekStepper: wireWeekStepper,
+    enhanceTabs: enhanceTabs, myTeam: myTeam, setMyTeam: setMyTeam,
     h: h, fmt: fmt, toast: toast, setBusy: setBusy
   };
 })();

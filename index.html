@@ -110,6 +110,55 @@
     return n;
   }
 
+  /** Hàng nút chọn đội. Chạm lại đúng đội đang chọn để bỏ chọn. */
+  function teamPicker(mine) {
+    var wrap = h('div', { class: 'picker', role: 'group', 'aria-label': 'Chọn đội của em' }, [
+      h('span', { class: 'lab', text: 'Đội của em' })
+    ]);
+    Object.keys(model.teams).map(Number).sort().forEach(function (d) {
+      var t = model.teams[d];
+      wrap.appendChild(h('button', {
+        type: 'button', class: 'pick' + (d === mine ? ' on' : ''), style: { '--team': t.color },
+        'aria-pressed': d === mine ? 'true' : 'false', text: String(d),
+        'aria-label': t.name,
+        onclick: function () { N3.setMyTeam(d === mine ? null : d); render(); }
+      }));
+    });
+    return wrap;
+  }
+
+  /** Một câu trả lời thẳng: đội em hạng mấy, cách đội đứng trên bao nhiêu */
+  function myTeamSummary(doi) {
+    var t = model.teams[doi], rank = t.rank;
+    var msg;
+    if (rank === 1) {
+      var second = model.teams[model.ranking[1]];
+      var lead = second ? t.season.total - second.season.total : 0;
+      msg = [h('b', { text: t.name + ' đang dẫn đầu' }),
+             second ? ' — hơn ' + second.name + ' ' + fmt(lead, 1) + ' điểm. Giữ vững nhé!' : '.'];
+    } else {
+      var above = model.teams[model.ranking[rank - 2]];
+      var gap = above.season.total - t.season.total;
+      msg = [h('b', { text: t.name + ' đang hạng ' + rank }),
+             ' — cách ' + above.name + ' ' + fmt(gap, 1) + ' điểm.'];
+      var hint = weakest(t);
+      if (hint) msg.push(' Nâng ' + hint + ' là cách nhanh nhất để vượt lên.');
+    }
+    return h('div', { class: 'mysum', style: { '--team': t.color } }, msg);
+  }
+
+  /** Tiêu chí đội đang yếu nhất so với đội dẫn đầu tiêu chí đó, có tính trọng số */
+  function weakest(t) {
+    var w = model.weights, keys = [['cc', 'chuyên cần'], ['ht', 'học tập'], ['kl', 'kỷ luật']];
+    var best = null, bestGain = 0;
+    keys.forEach(function (k) {
+      var top = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season[k[0]] || 0; }));
+      var gain = (top - (t.season[k[0]] || 0)) * w[k[0]];
+      if (gain > bestGain) { bestGain = gain; best = k[1]; }
+    });
+    return best;
+  }
+
   function renderTong() {
     var p = document.getElementById('panel-tong'); p.innerHTML = '';
     if (!model.dates.length) {
@@ -133,25 +182,14 @@
       ]));
     }
 
-    // Bục vinh danh 3 đội dẫn đầu (thứ tự trưng bày: nhì – nhất – ba)
-    var top = model.ranking.slice(0, 3);
-    if (top.length === 3) {
-      var order = [top[1], top[0], top[2]];
-      var pod = h('div', { class: 'podium' });
-      order.forEach(function (doi) {
-        var t = model.teams[doi];
-        pod.appendChild(h('div', { class: 'pod p' + t.rank, style: { '--team': t.color } }, [
-          h('div', { class: 'crown', text: t.rank === 1 ? '👑' : '' }),
-          h('div', { class: 'avatar', text: String(t.doi) }),
-          h('div', { class: 'who', text: t.name }),
-          h('div', { class: 'pts', text: fmt(t.season.total, 1) }),
-          h('div', { class: 'block' }, [h('b', { text: String(t.rank) })])
-        ]));
-      });
-      p.appendChild(pod);
-    }
+    // ---- Đội của em: chọn một lần, trang ghi nhớ ----
+    var mine = N3.myTeam();
+    if (mine && !model.teams[mine]) mine = null;
+    p.appendChild(teamPicker(mine));
+    if (mine) p.appendChild(myTeamSummary(mine));
 
-    // Bảng xếp hạng đầy đủ
+    // ---- Bảng xếp hạng: hạng 1 là thẻ lớn, hạng 2–4 gọn bên dưới ----
+    // (Trước đây có thêm bục vinh danh riêng, khiến top 3 hiện hai lần.)
     var prev = previousRanking();
     var max = Math.max.apply(null, model.ranking.map(function (d) { return model.teams[d].season.total; })) || 1;
     var medals = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -165,20 +203,34 @@
       var move = null;
       if (prev && prev[doi]) {
         var d = prev[doi] - t.rank;
-        move = h('span', { class: 'move ' + (d > 0 ? 'up' : d < 0 ? 'down' : 'same'), text: d > 0 ? '▲' + d : d < 0 ? '▼' + (-d) : '–' });
+        // Chỉ hiện khi thật sự lên/xuống hạng; giữ hạng thì không cần ký hiệu
+        if (d !== 0) {
+          move = h('span', { class: 'move ' + (d > 0 ? 'up' : 'down'),
+            'aria-label': d > 0 ? 'Lên ' + d + ' hạng so với tuần trước' : 'Xuống ' + (-d) + ' hạng so với tuần trước',
+            text: d > 0 ? '▲ ' + d : '▼ ' + (-d) });
+        }
       }
       var chips = h('div', { class: 'chips' }, [
-        h('span', { class: 'chip' + (se.cc === bestCC && bestCC > 0 ? ' win' : ''), text: '🔥 Chuyên cần ' + fmt(se.cc) }),
-        h('span', { class: 'chip' + (se.ht === bestHT && bestHT > 0 ? ' win' : ''), text: '📖 Học tập ' + fmt(se.ht) }),
-        h('span', { class: 'chip' + (se.kl === bestKL && bestKL > 0 ? ' win' : ''), text: '🛡️ Kỷ luật ' + fmt(se.kl) })
+        h('span', { class: 'chip' + (se.cc === bestCC && bestCC > 0 ? ' win' : ''), text: '🔥 ' + fmt(se.cc) }),
+        h('span', { class: 'chip' + (se.ht === bestHT && bestHT > 0 ? ' win' : ''), text: '📖 ' + fmt(se.ht) }),
+        h('span', { class: 'chip' + (se.kl === bestKL && bestKL > 0 ? ' win' : ''), text: '🛡️ ' + fmt(se.kl) })
       ]);
       var st = streak(t);
       if (st >= 2) chips.appendChild(h('span', { class: 'chip win', text: '⚡ ' + st + ' tuần đi đủ' }));
 
-      lb.appendChild(h('div', { class: 'lb-row' + (t.rank === 1 ? ' lead' : ''), style: { '--team': t.color } }, [
-        h('div', { class: 'medal' + (medals[t.rank] ? '' : ' plain'), text: medals[t.rank] || String(t.rank) }),
-        h('div', null, [
-          h('div', { class: 'head' }, [h('b', { text: t.name }), h('span', { class: 'chip', text: t.active.length + ' em' }), move]),
+      var hero = t.rank === 1;
+      var cls = 'lb-row' + (hero ? ' hero' : '') + (doi === mine ? ' mine' : '');
+      lb.appendChild(h('div', { class: cls, style: { '--team': t.color }, 'data-doi': doi }, [
+        hero ? h('div', { class: 'crown', text: '👑', 'aria-hidden': 'true' }) : null,
+        h('div', { class: 'medal' + (medals[t.rank] ? '' : ' plain'), text: medals[t.rank] || String(t.rank),
+                   'aria-label': 'Hạng ' + t.rank }),
+        h('div', { class: 'body' }, [
+          h('div', { class: 'head' }, [
+            h('b', { text: t.name }),
+            doi === mine ? h('span', { class: 'tag-mine', text: 'Đội của em' }) : null,
+            h('span', { class: 'chip', text: t.active.length + ' em' }),
+            move
+          ]),
           h('div', { class: 'xp' }, [h('i', { style: { width: (se.total / max * 100) + '%' } })]),
           chips
         ]),
@@ -186,6 +238,7 @@
       ]));
     });
     p.appendChild(lb);
+    p.appendChild(h('p', { class: 'legend', text: '🔥 Chuyên cần · 📖 Học tập · 🛡️ Kỷ luật — điểm trung bình mỗi tuần, thang 10. Ô vàng là đội dẫn đầu tiêu chí đó.' }));
 
     // Huy hiệu theo tiêu chí
     var awards = [
@@ -269,7 +322,7 @@
     var tb = h('tbody');
     order.forEach(function (doi, i) {
       var t = model.teams[doi], se = t.season;
-      tb.appendChild(h('tr', null, [
+      tb.appendChild(h('tr', { class: doi === N3.myTeam() ? 'mine' : '' }, [
         h('td', { text: String(i + 1) }),
         h('td', null, [h('span', { class: 'team-dot', style: { '--team': t.color } }), t.name]),
         h('td', { class: 'num' + (i === 0 ? ' best' : ''), text: fmt(se[key]) }),
@@ -290,21 +343,23 @@
     var tw = h('div', { class: 'table-wrap' });
     var tbl = h('table');
     tbl.appendChild(h('thead', null, [h('tr', null, [h('th', { text: 'Chúa Nhật' })].concat(doiList.map(function (d) {
-      return h('th', { class: 'num' }, [h('span', { class: 'team-dot', style: { '--team': model.teams[d].color } }), model.teams[d].name]);
+      return h('th', { class: 'num' + (d === N3.myTeam() ? ' mine' : '') }, [h('span', { class: 'team-dot', style: { '--team': model.teams[d].color } }), model.teams[d].name]);
     })))]));
     var tb = h('tbody');
     model.dates.slice().reverse().forEach(function (iso) {
       var vals = doiList.map(function (d) { return model.teams[d].weekly[iso]; });
       var best = Math.max.apply(null, vals.map(function (w) { var v = w[key]; return v === null || v === undefined ? -1 : v; }));
-      tb.appendChild(h('tr', null, [h('td', { text: N3.fmtVN(iso) })].concat(vals.map(function (w) {
+      var mineNow = N3.myTeam();
+      tb.appendChild(h('tr', null, [h('td', { text: N3.fmtVN(iso) })].concat(vals.map(function (w, i) {
         var v = w[key]; var isBest = v !== null && v !== undefined && v === best && best > 0;
-        return h('td', { class: 'num' + (isBest ? ' best' : ''), text: cell(w) });
+        return h('td', { class: 'num' + (isBest ? ' best' : '') + (doiList[i] === mineNow ? ' mine' : ''), text: cell(w) });
       }))));
     });
     tbl.appendChild(tb); tw.appendChild(tbl);
     return tw;
   }
 
+  N3.enhanceTabs(document.getElementById('tabs'));
   N3.mountRoleMenu({ page: 'index', role: null, onReload: function () { load(); } });
 
   load();

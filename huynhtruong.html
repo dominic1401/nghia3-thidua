@@ -132,6 +132,7 @@
   }
   document.getElementById('btnLogin').onclick = function () { tryLogin(document.getElementById('pin').value.trim()); };
   document.getElementById('pin').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('btnLogin').click(); });
+  N3.enhanceTabs(document.getElementById('tabs'));
   menu = N3.mountRoleMenu({ page: 'huynhtruong', role: null, anchor: '#barRight', onReload: function () { load(); } });
 
   /* ---- tabs ---- */
