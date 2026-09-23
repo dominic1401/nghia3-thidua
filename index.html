@@ -353,6 +353,12 @@
   /* ---------- Tab Bài học ---------- */
   function renderLessons() {
     var p = document.getElementById('panel-bai'); p.innerHTML = '';
+    // Bản Apps Script cũ không gửi mục bài học -> nói rõ, đừng để tưởng là chưa soạn bài
+    if (!raw.lessons) {
+      p.appendChild(N3.stateView({ img: 'offline', kind: 'err', title: 'Máy chủ chưa có mục bài học',
+        text: 'Bản Apps Script đang chạy là bản cũ. Vào Apps Script → Deploy → Manage deployments → Edit → New version → Deploy.' }));
+      return;
+    }
     var list = (raw.lessons || []).filter(function (l) { return l.tenBai; })
                  .sort(function (a, b) { return a.ngay < b.ngay ? 1 : -1; });
     if (!list.length) {

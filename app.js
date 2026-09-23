@@ -32,12 +32,33 @@
     });
   }
 
-  function apiGet(action) {
+  /**
+   * Apps Script trả về JSON khi chạy đúng. Nếu nó trả về một trang HTML thì
+   * gần như chắc chắn là trang đăng nhập hoặc trang báo lỗi của Google — nói
+   * thẳng nguyên nhân thay vì để lộ lỗi "Unexpected token '<'".
+   */
+  function readJson(r) {
+    return r.text().then(function (txt) {
+      try { return JSON.parse(txt); }
+      catch (e) {
+        if (/^\s*</.test(txt)) {
+          throw new Error('Máy chủ trả về trang web thay vì dữ liệu. Thường do bản Apps Script chưa được Deploy lại (Manage deployments → Edit → New version), hoặc mục "Who has access" chưa đặt là Anyone.');
+        }
+        throw new Error('Dữ liệu trả về không đọc được.');
+      }
+    });
+  }
+
+  function apiGet(action, retry) {
     var url = ensureApiUrl();
     if (!url) return Promise.reject(new Error('Chưa cấu hình URL API'));
     return withTimeout(fetch(url + '?action=' + action + '&t=' + Date.now(), { redirect: 'follow' })
-      .then(function (r) { return r.json(); })
-      .then(unwrap), 45000);
+      .then(readJson).then(unwrap), 45000)
+      .catch(function (err) {
+        // Google đôi khi trục trặc nhất thời: thử lại một lần trước khi báo lỗi
+        if (retry) throw err;
+        return new Promise(function (res) { setTimeout(res, 1400); }).then(function () { return apiGet(action, true); });
+      });
   }
 
   function apiPost(payload) {
@@ -45,8 +66,7 @@
     if (!url) return Promise.reject(new Error('Chưa cấu hình URL API'));
     // Không đặt Content-Type để tránh CORS preflight (Apps Script không hỗ trợ OPTIONS)
     return withTimeout(fetch(url, { method: 'POST', body: JSON.stringify(payload), redirect: 'follow' })
-      .then(function (r) { return r.json(); })
-      .then(unwrap), 45000);
+      .then(readJson).then(unwrap), 45000);
   }
 
   function unwrap(res) {
