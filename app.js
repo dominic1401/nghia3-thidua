@@ -464,13 +464,16 @@
     return img;
   }
 
-  /** Biểu tượng đơn sắc cho tab — vẽ bằng nét, đổi màu theo trạng thái tab */
+  /**
+   * Biểu tượng tab — vẽ lại thành một bộ: cùng khổ 24, cùng độ dày nét, cùng
+   * cách bo góc, để năm cái đứng cạnh nhau có sức nặng thị giác ngang nhau.
+   */
   var GLYPH = {
-    tong: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2 2 0 0 0 1.5 4H8M16 6h2.5a2 2 0 0 1-1.5 4H16"/><path d="M12 13v3.5M8.5 20h7M9.5 16.5h5"/>',
-    cc: '<path d="M12 3.5c.8 2.8 4.5 4.6 4.5 9a4.5 4.5 0 0 1-9 0c0-2.1 1-3.5 2.3-4.6.1 1.9.9 3 2 3.3-.6-2.6-.5-5 .2-7.7z"/>',
-    ht: '<path d="M3.5 5.5H9a3 3 0 0 1 3 3v11a2.5 2.5 0 0 0-2.5-2.5h-6z"/><path d="M20.5 5.5H15a3 3 0 0 0-3 3v11a2.5 2.5 0 0 1 2.5-2.5h6z"/>',
-    kl: '<path d="M12 3.2 19.5 6v5.6c0 4.7-3.2 7.9-7.5 9.2-4.3-1.3-7.5-4.5-7.5-9.2V6z"/><path d="m9 12 2.1 2.1L15.2 10"/>',
-    bai: '<path d="M7 4h10.5A1.5 1.5 0 0 1 19 5.5V18a2 2 0 0 1-2 2H8.5"/><path d="M7 4a2 2 0 0 0-2 2v1.5h4V6a2 2 0 0 0-2-2zM9 7.5V18a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-1h4"/><path d="M11.5 9.5h4.5M11.5 13h4.5"/>'
+    tong: '<path d="M7.6 4.6h8.8v4.1a4.4 4.4 0 0 1-8.8 0z"/><path d="M7.6 6.3H5.3a2.2 2.2 0 0 0 2.3 3.4M16.4 6.3h2.3a2.2 2.2 0 0 1-2.3 3.4"/><path d="M12 13.1v3.1M10.1 16.2h3.8l.9 3.2H9.2z"/>',
+    cc: '<path d="M12 3.3c3.1 3.5 5.2 5.9 5.2 9.2a5.2 5.2 0 0 1-10.4 0c0-2.1.9-3.7 2.4-5 .1 1.9.9 3.1 2.1 3.5-.6-2.7-.5-5.1.7-7.7z"/>',
+    ht: '<path d="M12 7.6v11.8"/><path d="M12 7.6C10.9 6.3 9.3 5.7 7.2 5.7H4.4v11.8h2.8c2.1 0 3.7.6 4.8 1.9"/><path d="M12 7.6c1.1-1.3 2.7-1.9 4.8-1.9h2.8v11.8h-2.8c-2.1 0-3.7.6-4.8 1.9"/>',
+    kl: '<path d="M12 3.9 19 6.5v5.2c0 4.3-2.9 7.2-7 8.4-4.1-1.2-7-4.1-7-8.4V6.5z"/><path d="m9.3 11.9 1.9 1.9 3.5-3.6"/>',
+    bai: '<path d="M6.8 4.1h6.9l4.2 4.2v10.8a1.8 1.8 0 0 1-1.8 1.8H6.8A1.8 1.8 0 0 1 5 19.1V5.9a1.8 1.8 0 0 1 1.8-1.8z"/><path d="M13.7 4.1v4.2h4.2"/><path d="M8.4 12.6h7.2M8.4 16.1h4.6"/>'
   };
   function glyph(name) {
     return '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (GLYPH[name] || '') + '</svg>';

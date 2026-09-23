@@ -366,23 +366,57 @@
         text: 'Huynh Trưởng sẽ đăng bài sau mỗi buổi học để các em ôn lại trong tuần.' }));
       return;
     }
+
+    p.appendChild(h('div', { class: 'crit-head' }, [
+      N3.asset('badge-ht', 52),
+      h('div', null, [
+        h('h2', { text: 'Bài học' }),
+        h('p', { class: 'sub', text: list.length + ' bài đã đăng, mới nhất Chúa Nhật ' + N3.fmtShort(list[0].ngay) })
+      ])
+    ]));
+
+    var wrap = h('div', { class: 'lessons' });
     list.forEach(function (l, i) {
-      var body = h('div', { class: 'lesson-body' });
-      if (l.loiChua) body.appendChild(h('blockquote', { class: 'loichua' }, [l.loiChua, l.trichDan ? h('cite', { text: l.trichDan }) : null]));
+      var so = list.length - i;            // đánh số từ bài đầu năm
+      var body = h('div', { class: 'l-body' });
+
+      if (l.loiChua) {
+        body.appendChild(h('blockquote', { class: 'loichua2' }, [
+          h('p', { text: l.loiChua }),
+          l.trichDan ? h('cite', { text: l.trichDan }) : null
+        ]));
+      }
       if (l.yChinh && l.yChinh.length) {
         body.appendChild(h('h4', { text: 'Ý chính cần nhớ' }));
-        var ul = h('ul', { class: 'ychinh' });
-        l.yChinh.forEach(function (y) { ul.appendChild(h('li', { text: y })); });
-        body.appendChild(ul);
+        var ol = h('ol', { class: 'ychinh2' });
+        l.yChinh.forEach(function (y) { ol.appendChild(h('li', { text: y })); });
+        body.appendChild(ol);
       }
-      if (l.cauHoi) body.appendChild(h('div', { class: 'suyniem' }, [h('b', { text: 'Suy niệm' }), l.cauHoi]));
-      var det = h('details', { class: 'lesson' }, [
-        h('summary', null, [h('span', { class: 'ngay', text: N3.fmtVN(l.ngay) }), h('span', { class: 'ten', text: l.tenBai })]),
+      if (l.cauHoi) {
+        body.appendChild(h('div', { class: 'suyniem2' }, [
+          h('span', { class: 'lab', text: 'Suy niệm trong tuần' }),
+          h('p', { text: l.cauHoi })
+        ]));
+      }
+
+      var det = h('details', { class: 'lesson2' + (i === 0 ? ' newest' : '') }, [
+        h('summary', null, [
+          h('span', { class: 'l-num', text: String(so) }),
+          h('span', { class: 'l-text' }, [
+            h('span', { class: 'l-date' }, [
+              'Chúa Nhật ' + N3.fmtVN(l.ngay),
+              i === 0 ? h('span', { class: 'l-new', text: 'Mới' }) : null
+            ]),
+            h('b', { text: l.tenBai })
+          ]),
+          h('span', { class: 'l-chev', 'aria-hidden': 'true' })
+        ]),
         body
       ]);
       if (i === 0) det.open = true;
-      p.appendChild(det);
+      wrap.appendChild(det);
     });
+    p.appendChild(wrap);
   }
 
   /** Bảng theo tuần: hàng = Chúa Nhật, cột = đội */
