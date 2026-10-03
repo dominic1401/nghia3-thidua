@@ -99,8 +99,7 @@
       <div class="toolbar">
         <div class="field"><label for="kqDe">Bài kiểm tra</label><select id="kqDe"></select></div>
         <div class="grow" style="flex:1"></div>
-        <button class="btn gold" type="button" id="kqPull">Lấy kết quả mới từ Form</button>
-        <button class="link" type="button" id="kqReload">Tải lại</button>
+        <button class="btn ghost" type="button" id="kqReload">Tải lại kết quả</button>
       </div>
       <div id="kqBody"></div>
     </section>
@@ -121,7 +120,7 @@
 <script>
 (function () {
   var h = N3.h, fmt = N3.fmt;
-  var raw = null, model = null, menu = null, syncStepper = null, quiz = null, pullMsg = null;
+  var raw = null, model = null, menu = null, syncStepper = null, quiz = null;
 
   /* ---- login ---- */
   function showLogin(msg) {
@@ -446,37 +445,7 @@
       box.appendChild(h('div', { class: 'empty', text: 'Không tải được kết quả: ' + err.message }));
     }).finally(function () { N3.setBusy(false); });
   }
-  document.getElementById('kqReload').onclick = function () { quiz = null; pullMsg = null; loadQuiz(); };
-
-  /**
-   * Gọi Google Form lấy bài làm mới về — đúng việc mà menu "Lấy kết quả bài
-   * kiểm tra" trong Google Sheet đang làm, nhưng chỉ cho bài đang chọn nên nhanh hơn.
-   */
-  document.getElementById('kqPull').onclick = function () {
-    var btn = this;
-    if (btn.dataset.busy === '1') return;
-    var maDe = document.getElementById('kqDe').value;
-    if (!maDe) { N3.toast('Chưa chọn bài kiểm tra nào', 'err'); return; }
-    btn.dataset.busy = '1'; btn.textContent = 'Đang lấy từ Form…';
-    N3.setBusy(true);
-    N3.apiPost({ action: 'pullQuiz', pin: N3.savedPin(), maDe: maDe }).then(function (res) {
-      quiz = res.quiz;
-      var t = res.tomTat || {};
-      var coVanDe = (t.loiForm && t.loiForm.length) || (t.lacTen && t.lacTen.length);
-      pullMsg = coVanDe ? res.loi : null;
-      fillQuizSelect();
-      document.getElementById('kqDe').value = maDe;
-      renderQuiz();
-      if (!coVanDe) N3.toast('Đã lấy về ' + (t.tong || 0) + ' bài làm', 'ok');
-    }).catch(function (err) {
-      pullMsg = 'Không lấy được kết quả: ' + err.message +
-        '\n\nNếu Google báo thiếu quyền, mở Apps Script chạy tay một lần hàm layKetQuaKiemTra để cấp lại quyền, rồi bấm nút này lại.';
-      renderQuiz();
-    }).finally(function () {
-      btn.dataset.busy = '0'; btn.textContent = 'Lấy kết quả mới từ Form';
-      N3.setBusy(false);
-    });
-  };
+  document.getElementById('kqReload').onclick = function () { quiz = null; loadQuiz(); };
   document.getElementById('kqDe').onchange = renderQuiz;
 
   function fillQuizSelect() {
@@ -496,12 +465,6 @@
 
   function renderQuiz() {
     var box = document.getElementById('kqBody'); box.innerHTML = '';
-    if (pullMsg) {
-      var rep = h('div', { class: 'pull-report' }, [h('pre', { text: pullMsg })]);
-      rep.appendChild(h('button', { class: 'link', type: 'button', text: 'Ẩn thông báo này',
-        onclick: function () { pullMsg = null; renderQuiz(); } }));
-      box.appendChild(rep);
-    }
     if (!quiz.tests || !quiz.tests.length) {
       box.appendChild(h('div', { class: 'empty' }, [
         h('p', { text: 'Chưa có bài kiểm tra nào.' }),
