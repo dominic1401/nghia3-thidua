@@ -687,3 +687,6 @@ tr.yeu td { background: var(--no-soft); }
 tr.yeu td.diem { color: var(--no); }
 ul.thieu { margin: 0; padding-left: 20px; }
 ul.thieu li { margin-bottom: 5px; font-size: 14.5px; color: var(--ink-2); }
+.pull-report { background: var(--gold-soft); border: 1px solid var(--gold); border-radius: 14px; padding: 12px 14px; margin-bottom: 16px; }
+.pull-report pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+.pull-report .link { background: none; border: 0; margin-top: 8px; padding: 4px 0; color: var(--gold-deep); font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
