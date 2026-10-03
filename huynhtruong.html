@@ -33,6 +33,7 @@
       <button role="tab" aria-selected="true" data-tab="cham">⚖️ Chấm điểm</button>
       <button role="tab" data-tab="cc">🔥 Chuyên cần</button>
       <button role="tab" data-tab="bai">📖 Soạn bài học</button>
+      <button role="tab" data-tab="kq">📝 Kết quả kiểm tra</button>
     </div>
 
     <section class="panel" id="panel-cham">
@@ -94,6 +95,15 @@
       <p class="note">Bài đã lưu sẽ hiện ở tab <b>Bài học</b> trên bảng thi đua để các em ôn lại trong tuần.</p>
     </section>
 
+    <section class="panel" id="panel-kq" hidden>
+      <div class="toolbar">
+        <div class="field"><label for="kqDe">Bài kiểm tra</label><select id="kqDe"></select></div>
+        <div class="grow" style="flex:1"></div>
+        <button class="btn ghost" type="button" id="kqReload">Tải lại kết quả</button>
+      </div>
+      <div id="kqBody"></div>
+    </section>
+
     <section class="panel" id="panel-cc" hidden>
       <div class="toolbar">
         <div class="field"><label for="team">Đội</label><select id="team"></select></div>
@@ -110,7 +120,7 @@
 <script>
 (function () {
   var h = N3.h, fmt = N3.fmt;
-  var raw = null, model = null, menu = null, syncStepper = null;
+  var raw = null, model = null, menu = null, syncStepper = null, quiz = null;
 
   /* ---- login ---- */
   function showLogin(msg) {
@@ -140,6 +150,7 @@
     var b = e.target.closest('button[data-tab]'); if (!b) return;
     document.querySelectorAll('#tabs button').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
     document.querySelectorAll('.panel').forEach(function (p) { p.hidden = p.id !== 'panel-' + b.dataset.tab; });
+    if (b.dataset.tab === 'kq' && !quiz) loadQuiz();
   });
 
   /* ---- data ---- */
@@ -419,6 +430,156 @@
     }).catch(function (err) { N3.toast(err.message, 'err'); if (/PIN/.test(err.message)) showLogin(err.message); })
       .finally(function () { btn.dataset.saving = '0'; btn.textContent = 'Lưu bài học'; N3.setBusy(false); });
   };
+
+  /* ---- kết quả bài kiểm tra ---- */
+  function loadQuiz() {
+    var box = document.getElementById('kqBody');
+    box.innerHTML = '<p class="note">Đang tải kết quả…</p>';
+    N3.setBusy(true);
+    N3.apiPost({ action: 'quizData', pin: N3.savedPin() }).then(function (res) {
+      quiz = res.quiz;
+      fillQuizSelect();
+      renderQuiz();
+    }).catch(function (err) {
+      box.innerHTML = '';
+      box.appendChild(h('div', { class: 'empty', text: 'Không tải được kết quả: ' + err.message }));
+    }).finally(function () { N3.setBusy(false); });
+  }
+  document.getElementById('kqReload').onclick = function () { quiz = null; loadQuiz(); };
+  document.getElementById('kqDe').onchange = renderQuiz;
+
+  function fillQuizSelect() {
+    var sel = document.getElementById('kqDe'); var cur = sel.value;
+    sel.innerHTML = '';
+    var coBai = {};
+    (quiz.results || []).forEach(function (r) { coBai[r.maDe] = 1; });
+    var list = (quiz.tests || []).slice().sort(function (a, b) { return a.thoiGianTao < b.thoiGianTao ? 1 : -1; });
+    list.forEach(function (t) {
+      sel.appendChild(h('option', { value: t.maDe, text: (t.tenBai || t.maDe) + (coBai[t.maDe] ? ' ✓' : '') }));
+    });
+    // Mặc định mở đề mới nhất ĐÃ có bài làm; chưa đề nào có thì lấy đề mới nhất
+    var mac = (list.filter(function (t) { return coBai[t.maDe]; })[0] || list[0] || {}).maDe;
+    sel.value = (cur && coBai[cur] !== undefined) || cur === mac ? cur : mac;
+    if (!sel.value) sel.value = mac || '';
+  }
+
+  function renderQuiz() {
+    var box = document.getElementById('kqBody'); box.innerHTML = '';
+    if (!quiz.tests || !quiz.tests.length) {
+      box.appendChild(h('div', { class: 'empty' }, [
+        h('p', { text: 'Chưa có bài kiểm tra nào.' }),
+        h('p', { class: 'note', text: 'Mở Google Sheet của lớp → menu "Nghĩa 3" → "Tạo bài kiểm tra trên Google Form…".' })
+      ]));
+      return;
+    }
+    var maDe = document.getElementById('kqDe').value;
+    var test = quiz.tests.filter(function (t) { return t.maDe === maDe; })[0];
+    if (!test) return;
+
+    var rows = (quiz.results || []).filter(function (r) { return r.maDe === maDe; });
+
+    // Link cho các em làm bài
+    if (test.linkLamBai) {
+      var inp = h('input', { type: 'text', readonly: 'readonly', value: test.linkLamBai, class: 'linkbox' });
+      inp.onclick = function () { inp.select(); };
+      var btn = h('button', { class: 'btn ghost', type: 'button', text: 'Chép link' });
+      btn.onclick = function () {
+        inp.select();
+        try { document.execCommand('copy'); N3.toast('Đã chép link làm bài', 'ok'); }
+        catch (e) { N3.toast('Hãy chép thủ công từ ô bên cạnh', 'err'); }
+      };
+      box.appendChild(h('div', { class: 'linkrow' }, [
+        h('span', { class: 'lab', text: 'Link các em làm bài' }), inp, btn
+      ]));
+    }
+
+    if (!rows.length) {
+      box.appendChild(h('div', { class: 'empty' }, [
+        h('p', { text: 'Chưa có bài làm nào được lấy về.' }),
+        h('p', { class: 'note', text: 'Sau giờ kiểm tra, vào Google Sheet → menu "Nghĩa 3" → "Lấy kết quả bài kiểm tra về", rồi bấm Tải lại kết quả.' })
+      ]));
+      return;
+    }
+
+    // Tổng quan
+    var diems = rows.map(function (r) { return r.diem; });
+    var tb = diems.reduce(function (a, b) { return a + b; }, 0) / diems.length;
+    var dat = diems.filter(function (d) { return d >= 5; }).length;
+    var siSo = 0;
+    Object.keys(model.teams).forEach(function (d) { siSo += model.teams[d].active.length; });
+
+    box.appendChild(h('div', { class: 'kq-stats' }, [
+      stat(rows.length + '/' + siSo, 'đã làm bài'),
+      stat(fmt(tb, 1), 'điểm trung bình'),
+      stat(dat + '/' + rows.length, 'đạt từ 5 trở lên'),
+      stat(fmt(Math.max.apply(null, diems), 1), 'điểm cao nhất')
+    ]));
+
+    // Trung bình theo đội
+    var byTeam = {};
+    rows.forEach(function (r) { (byTeam[r.doi] = byTeam[r.doi] || []).push(r.diem); });
+    var tw = h('div', { class: 'table-wrap' });
+    var tbl = h('table');
+    tbl.appendChild(h('thead', null, [h('tr', null, [
+      h('th', { text: 'Đội' }), h('th', { class: 'num', text: 'Số em làm' }), h('th', { class: 'num', text: 'Điểm TB' })
+    ])]));
+    var tb1 = h('tbody');
+    Object.keys(byTeam).map(Number).sort(function (a, b) {
+      return avg(byTeam[b]) - avg(byTeam[a]);
+    }).forEach(function (d) {
+      tb1.appendChild(h('tr', null, [
+        h('td', null, [h('span', { class: 'tcell' }, [N3.mascot(d, 26), 'Đội ' + d])]),
+        h('td', { class: 'num', text: String(byTeam[d].length) }),
+        h('td', { class: 'num', text: fmt(avg(byTeam[d]), 1) })
+      ]));
+    });
+    tbl.appendChild(tb1); tw.appendChild(tbl);
+    box.appendChild(h('h2', { class: 'sec', text: 'Trung bình theo đội' }));
+    box.appendChild(tw);
+
+    // Từng em
+    box.appendChild(h('h2', { class: 'sec', text: 'Điểm từng em' }));
+    var tw2 = h('div', { class: 'table-wrap' });
+    var tbl2 = h('table');
+    tbl2.appendChild(h('thead', null, [h('tr', null, [
+      h('th', { text: 'Thiếu nhi' }), h('th', { text: 'Đội' }),
+      h('th', { class: 'num', text: 'Đúng' }), h('th', { class: 'num', text: 'Điểm' })
+    ])]));
+    var tb2 = h('tbody');
+    rows.slice().sort(function (a, b) { return b.diem - a.diem; }).forEach(function (r) {
+      tb2.appendChild(h('tr', { class: r.diem < 5 ? 'yeu' : '' }, [
+        h('td', { text: r.hoTen }),
+        h('td', { text: 'Đội ' + r.doi }),
+        h('td', { class: 'num', text: r.dung + '/' + r.tongCau }),
+        h('td', { class: 'num diem', text: fmt(r.diem, 1) })
+      ]));
+    });
+    tbl2.appendChild(tb2); tw2.appendChild(tbl2); box.appendChild(tw2);
+
+    // Em chưa làm bài
+    var daLam = {};
+    rows.forEach(function (r) { daLam[r.id] = 1; });
+    var thieu = [];
+    Object.keys(model.teams).map(Number).sort().forEach(function (d) {
+      model.teams[d].active.forEach(function (m) {
+        if (!daLam[m.id]) thieu.push('Đội ' + d + ' · ' + m.tenThanh + ' ' + m.hoTen);
+      });
+    });
+    if (thieu.length) {
+      box.appendChild(h('h2', { class: 'sec', text: 'Chưa làm bài (' + thieu.length + ' em)' }));
+      var ul = h('ul', { class: 'thieu' });
+      thieu.forEach(function (x) { ul.appendChild(h('li', { text: x })); });
+      box.appendChild(ul);
+    }
+
+    box.appendChild(h('p', { class: 'note', style: { marginTop: '20px' },
+      text: 'Điểm quy về thang 10. Kết quả này chỉ hiện ở trang Huynh Trưởng, không công khai trên bảng thi đua.' }));
+  }
+
+  function avg(a) { return a.reduce(function (x, y) { return x + y; }, 0) / a.length; }
+  function stat(big, lab) {
+    return h('div', { class: 'kq-stat' }, [h('b', { text: String(big) }), h('span', { text: lab })]);
+  }
 
   /* ---- chi tiết chuyên cần ---- */
   function renderCC() {
